@@ -2,37 +2,10 @@ import type { BoardType } from '@/types';
 
 interface BoardTableProps {
   type: BoardType;
+  data: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
-// Mock data for each board type - 50명 이상의 데이터
-const mockData = {
-  운동: Array.from({ length: 55 }, (_, i) => ({
-    no: i + 1,
-    name: `회원${i + 1}`,
-    time: `${String(14 + Math.floor(i / 60)).padStart(2, '0')}:${String((23 + i) % 60).padStart(2, '0')}:${String((15 + i * 3) % 60).padStart(2, '0')}`,
-  })),
-  게스트: Array.from({ length: 30 }, (_, i) => ({
-    no: i + 1,
-    applicant: `회원${i + 1}`,
-    guest: `게스트${i + 1}`,
-    time: `${String(14 + Math.floor(i / 60)).padStart(2, '0')}:${String((23 + i) % 60).padStart(2, '0')}:${String((15 + i * 3) % 60).padStart(2, '0')}`,
-  })),
-  레슨: Array.from({ length: 20 }, (_, i) => ({
-    no: i + 1,
-    name: `회원${i + 1}`,
-    lessonTime: `${18 + Math.floor(i / 10)}:00`,
-    time: `${String(14 + Math.floor(i / 60)).padStart(2, '0')}:${String((23 + i) % 60).padStart(2, '0')}:${String((15 + i * 3) % 60).padStart(2, '0')}`,
-  })),
-  잔여석: Array.from({ length: 25 }, (_, i) => ({
-    no: i + 1,
-    applicant: `회원${i + 1}`,
-    participants: `${(i % 3) + 1}명`,
-    time: `${String(14 + Math.floor(i / 60)).padStart(2, '0')}:${String((23 + i) % 60).padStart(2, '0')}:${String((15 + i * 3) % 60).padStart(2, '0')}`,
-  })),
-};
-
-export function BoardTable({ type }: BoardTableProps) {
-  const data = mockData[type] || [];
+export function BoardTable({ type, data }: BoardTableProps) {
 
   const renderHeaders = () => {
     switch (type) {
