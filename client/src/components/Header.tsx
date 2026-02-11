@@ -1,6 +1,4 @@
 import { Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import type { DayType } from '@/types';
 
 interface HeaderProps {
@@ -11,46 +9,54 @@ interface HeaderProps {
   onMenuClick: () => void;
 }
 
-const DAYS: DayType[] = ['수', '금'];
-
-export function Header({
-  semester,
-  week,
-  currentDay,
-  onDayChange,
-  onMenuClick,
-}: HeaderProps) {
+export function Header({ semester, week, currentDay, onDayChange, onMenuClick }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 bg-white border-b shadow-sm">
-      <div className="flex items-center justify-between px-4 h-14">
-        <Button
-          variant="ghost"
-          size="icon"
+    <header className="bg-gray-50 shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))] border-b border-gray-300">
+      <div className="flex items-center justify-between">
+        {/* Left: Menu Icon */}
+        <button
           onClick={onMenuClick}
+          className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
           aria-label="메뉴 열기"
         >
-          <Menu className="size-5" />
-        </Button>
+          <Menu className="w-6 h-6 text-gray-700" />
+        </button>
 
-        <h1 className="text-base font-medium">
-          {semester}학기 {week}주차
-        </h1>
+        {/* Center: Title */}
+        <div className="flex-1 mx-4">
+          <h1 className="font-bold text-lg text-gray-900">2026 SMASH</h1>
+          <p className="text-sm text-gray-600">{semester}학기 {week}주차</p>
+        </div>
 
-        <div className="flex gap-1 rounded-lg bg-muted p-1">
-          {DAYS.map((day) => (
-            <button
-              key={day}
-              onClick={() => onDayChange(day)}
-              className={cn(
-                'px-3 py-1 rounded-md text-sm font-medium transition-colors',
-                currentDay === day
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {day}
-            </button>
-          ))}
+        {/* Right: Day Switch */}
+        <div className="relative flex items-center bg-gray-200 rounded-lg p-0.5">
+          {/* Sliding Background */}
+          <div
+            className={`absolute w-10 h-10 bg-gray-700 rounded-md shadow-md transition-transform duration-300 ease-out ${
+              currentDay === '수' ? 'translate-x-0' : 'translate-x-[42px]'
+            }`}
+          />
+
+          <button
+            onClick={() => onDayChange('수')}
+            className={`relative z-10 w-10 h-10 rounded-md text-sm font-bold transition-colors duration-300 ${
+              currentDay === '수'
+                ? 'text-white'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            수
+          </button>
+          <button
+            onClick={() => onDayChange('금')}
+            className={`relative z-10 w-10 h-10 rounded-md text-sm font-bold transition-colors duration-300 ${
+              currentDay === '금'
+                ? 'text-white'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            금
+          </button>
         </div>
       </div>
     </header>
