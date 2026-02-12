@@ -40,7 +40,7 @@ app.get('/test-db', async (req, res) => {
 
 // [수정 2] 모든 요청(*)에 대해 React의 index.html 반환 (SPA 라우팅)
 // 주의: 이 코드는 항상 API 라우트보다 아래에 있어야 합니다.
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/dist', 'index.html'));
 });
 
