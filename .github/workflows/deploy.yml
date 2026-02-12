@@ -1,0 +1,35 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 push될 때만 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: 22
+          script: |
+            # 1. 프로젝트 폴더로 이동 (폴더명 수정 필요!)
+            cd /home/ubuntu/레포지토리이름
+            
+            # 2. 최신 코드 받기
+            git pull origin main
+            
+            # 3. 라이브러리 설치 (새로운게 있을 수 있으니)
+            npm install
+            
+            # 4. 서버 재시작 (나중에 PM2 설정 후 주석 해제)
+            # pm2 reload all
+            
+            echo "배포가 완료되었습니다!"

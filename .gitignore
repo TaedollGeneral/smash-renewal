@@ -11,3 +11,6 @@ node_modules/
 
 # 빌드 출력
 client/dist/
+
+
+*.pem
