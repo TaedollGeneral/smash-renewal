@@ -1,5 +1,5 @@
 import { Menu } from 'lucide-react';
-import type { DayType } from '@/types';
+import type { DayType, User } from '@/types';
 
 interface HeaderProps {
   semester: string;
@@ -7,9 +7,10 @@ interface HeaderProps {
   currentDay: DayType;
   onDayChange: (day: DayType) => void;
   onMenuClick: () => void;
+  user: User | null;
 }
 
-export function Header({ semester, week, currentDay, onDayChange, onMenuClick }: HeaderProps) {
+export function Header({ semester, week, currentDay, onDayChange, onMenuClick, user }: HeaderProps) {
   return (
     <header className="bg-gray-50 shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))] border-b border-gray-300">
       <div className="flex items-center justify-between">
@@ -17,7 +18,6 @@ export function Header({ semester, week, currentDay, onDayChange, onMenuClick }:
         <button
           onClick={onMenuClick}
           className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
-          aria-label="메뉴 열기"
         >
           <Menu className="w-6 h-6 text-gray-700" />
         </button>
@@ -27,6 +27,14 @@ export function Header({ semester, week, currentDay, onDayChange, onMenuClick }:
           <h1 className="font-bold text-lg text-gray-900">2026 SMASH</h1>
           <p className="text-sm text-gray-600">{semester}학기 {week}주차</p>
         </div>
+
+        {/* User Info (if logged in) */}
+        {user && (
+          <div className="flex flex-col items-end mr-3">
+            <span className="text-sm font-bold text-gray-900">{user.name}</span>
+            <span className="text-xs text-gray-500">{user.role}</span>
+          </div>
+        )}
 
         {/* Right: Day Switch */}
         <div className="relative flex items-center bg-gray-200 rounded-lg p-0.5">
