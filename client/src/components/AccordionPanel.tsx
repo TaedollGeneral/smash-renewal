@@ -126,24 +126,24 @@ export function AccordionPanel({ title, isExpanded, onToggle, deadline }: Accord
       {/* Accordion Header */}
       <button
         onClick={onToggle}
-        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        className="w-full px-1.5 sm:px-2 py-2 sm:py-2.5 flex items-center justify-between hover:bg-gray-100 transition-colors"
       >
         {/* Left: Icon + Title */}
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{boardIcons[title]}</span>
-          <span className="font-semibold text-sm text-gray-900">{title}</span>
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <span className="text-base sm:text-lg">{boardIcons[title]}</span>
+          <span className="font-semibold text-xs sm:text-sm text-gray-900">{title}</span>
         </div>
 
         {/* Right: Notification + Countdown + Action Buttons + Icon */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* Notification Buttons */}
-          <div className="flex gap-1">
+          <div className="flex gap-0.5 sm:gap-1">
             <button
               onClick={handleNotification1Toggle}
-              className="p-1.5 rounded-lg transition-colors"
+              className="p-1 sm:p-1.5 rounded-lg transition-colors"
             >
               <Bell
-                className={`w-5 h-5 ${
+                className={`w-4 h-4 sm:w-5 sm:h-5 ${
                   notification1Enabled
                     ? 'text-blue-600 fill-blue-600'
                     : 'text-blue-300 fill-blue-100'
@@ -152,10 +152,10 @@ export function AccordionPanel({ title, isExpanded, onToggle, deadline }: Accord
             </button>
             <button
               onClick={handleNotification2Toggle}
-              className="p-1.5 rounded-lg transition-colors"
+              className="p-1 sm:p-1.5 rounded-lg transition-colors"
             >
               <Bell
-                className={`w-5 h-5 ${
+                className={`w-4 h-4 sm:w-5 sm:h-5 ${
                   notification2Enabled
                     ? 'text-red-600 fill-red-600'
                     : 'text-red-300 fill-red-100'
@@ -165,21 +165,21 @@ export function AccordionPanel({ title, isExpanded, onToggle, deadline }: Accord
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-300" />
+          <div className="w-px h-6 sm:h-8 bg-gray-300" />
 
           {/* Countdown */}
-          <div className="flex flex-col items-end ml-3">
-            <span className="text-[10px] text-gray-500">23:59까지</span>
-            <span className="text-base font-bold text-gray-900 tabular-nums">
+          <div className="flex flex-col items-end ml-1 sm:ml-3">
+            <span className="text-[8px] sm:text-[10px] text-gray-500">23:59까지</span>
+            <span className="text-xs sm:text-base font-bold text-gray-900 tabular-nums">
               {countdown}
             </span>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-300" />
+          <div className="w-px h-6 sm:h-8 bg-gray-300" />
 
           {/* Action Buttons */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-1 sm:gap-1.5">
             <button
               onClick={handleApply}
               className="relative px-4 py-2 rounded-lg text-sm font-bold text-gray-800 border border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 transition-colors shadow-sm overflow-hidden"
