@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { BoardTable } from './BoardTable';
 import type { BoardType } from '@/types';
@@ -16,44 +16,113 @@ interface AccordionPanelProps {
   isExpanded: boolean;
   onToggle: () => void;
   deadline: string; // HH:MM:SS format
-  data: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
-export function AccordionPanel({ title, deadline, isExpanded, onToggle, data }: AccordionPanelProps) {
-  const [countdown, setCountdown] = useState(deadline);
-
-  // deadline에서 "HH:MM" 형식 추출하여 표시용으로 사용
-  const deadlineDisplay = deadline.substring(0, 5);
+export function AccordionPanel({ title, isExpanded, onToggle, deadline }: AccordionPanelProps) {
+  const [countdown, setCountdown] = useState('23:59:59');
+  const [notification1Enabled, setNotification1Enabled] = useState(false);
+  const [notification2Enabled, setNotification2Enabled] = useState(false);
+  const [showParticipantModal, setShowParticipantModal] = useState(false);
+  const [participantName, setParticipantName] = useState('');
 
   useEffect(() => {
-    const calculateCountdown = () => {
-      const now = new Date();
-      const [dH, dM, dS] = deadline.split(':').map(Number);
-      const target = new Date(now);
-      target.setHours(dH, dM, dS, 0);
-
-      const diff = target.getTime() - now.getTime();
-      if (diff <= 0) {
-        return '00:00:00';
-      }
-
-      const totalSeconds = Math.floor(diff / 1000);
-      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-      const seconds = String(totalSeconds % 60).padStart(2, '0');
-      return `${hours}:${minutes}:${seconds}`;
-    };
-
-    setCountdown(calculateCountdown());
+    // Mock countdown timer
     const interval = setInterval(() => {
-      setCountdown(calculateCountdown());
+      const now = new Date();
+      const hours = String(23 - now.getHours()).padStart(2, '0');
+      const minutes = String(59 - now.getMinutes()).padStart(2, '0');
+      const seconds = String(59 - now.getSeconds()).padStart(2, '0');
+      setCountdown(`${hours}:${minutes}:${seconds}`);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [deadline]);
+  }, []);
+
+  const handleApply = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 아코디언 토글 방지
+
+    // 게스트와 잔여석은 참여인원 입력 모달 표시
+    if (title === '게스트' || title === '잔여석') {
+      setShowParticipantModal(true);
+    } else {
+      console.log(`${title} - 신청 실행`);
+      alert(`${title} 신청이 완료되었습니다.`);
+    }
+  };
+
+  const handleParticipantSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (participantName.trim()) {
+      console.log(`${title} - 신청 실행 (참여인원: ${participantName})`);
+      alert(`${title} 신청이 완료되었습니다.\n참여인원: ${participantName}`);
+      setParticipantName('');
+      setShowParticipantModal(false);
+    }
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 아코디언 토글 방지
+    console.log(`${title} - 취소 실행`);
+    alert(`${title} 취소가 완료되었습니다.`);
+  };
+
+  const handleNotification1Toggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 아코디언 토글 방지
+    setNotification1Enabled(!notification1Enabled);
+    console.log(`${title} - 알림1: ${!notification1Enabled ? '켜짐' : '꺼짐'}`);
+  };
+
+  const handleNotification2Toggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 아코디언 토글 방지
+    setNotification2Enabled(!notification2Enabled);
+    console.log(`${title} - 알림2: ${!notification2Enabled ? '켜짐' : '꺼짐'}`);
+  };
 
   return (
     <div className="border-b border-gray-300 bg-gray-50">
+      {/* Participant Modal */}
+      {showParticipantModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">운동참여인원 입력</h3>
+            <form onSubmit={handleParticipantSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  참여인원 이름
+                </label>
+                <input
+                  type="text"
+                  value={participantName}
+                  onChange={(e) => setParticipantName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  placeholder="이름 입력"
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowParticipantModal(false);
+                    setParticipantName('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                >
+                  확인
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Accordion Header */}
       <button
         onClick={onToggle}
@@ -65,17 +134,98 @@ export function AccordionPanel({ title, deadline, isExpanded, onToggle, data }: 
           <span className="font-semibold text-sm text-gray-900">{title}</span>
         </div>
 
-        {/* Right: Countdown and Icon */}
+        {/* Right: Notification + Countdown + Action Buttons + Icon */}
         <div className="flex items-center gap-2">
-          {/* Divider and Countdown */}
-          <div className="flex items-center gap-2">
-            <div className="w-px h-8 bg-gray-300" />
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] text-gray-500">{deadlineDisplay}까지</span>
-              <span className="text-base font-bold text-gray-900 tabular-nums">
-                {countdown}
-              </span>
-            </div>
+          {/* Notification Buttons */}
+          <div className="flex gap-1">
+            <button
+              onClick={handleNotification1Toggle}
+              className="p-1.5 rounded-lg transition-colors"
+            >
+              <Bell
+                className={`w-5 h-5 ${
+                  notification1Enabled
+                    ? 'text-blue-600 fill-blue-600'
+                    : 'text-blue-300 fill-blue-100'
+                }`}
+              />
+            </button>
+            <button
+              onClick={handleNotification2Toggle}
+              className="p-1.5 rounded-lg transition-colors"
+            >
+              <Bell
+                className={`w-5 h-5 ${
+                  notification2Enabled
+                    ? 'text-red-600 fill-red-600'
+                    : 'text-red-300 fill-red-100'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-300" />
+
+          {/* Countdown */}
+          <div className="flex flex-col items-end ml-3">
+            <span className="text-[10px] text-gray-500">23:59까지</span>
+            <span className="text-base font-bold text-gray-900 tabular-nums">
+              {countdown}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-300" />
+
+          {/* Action Buttons */}
+          <div className="flex gap-1.5">
+            <button
+              onClick={handleApply}
+              className="relative px-4 py-2 rounded-lg text-sm font-bold text-gray-800 border border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 transition-colors shadow-sm overflow-hidden"
+              style={{
+                backgroundColor: 'rgba(156, 163, 175, 0.12)',
+                backgroundImage: `repeating-linear-gradient(
+                  45deg,
+                  transparent,
+                  transparent 2px,
+                  rgba(0, 0, 0, 0.04) 2px,
+                  rgba(0, 0, 0, 0.04) 2.5px
+                ),
+                repeating-linear-gradient(
+                  -45deg,
+                  transparent,
+                  transparent 2px,
+                  rgba(0, 0, 0, 0.04) 2px,
+                  rgba(0, 0, 0, 0.04) 2.5px
+                )`
+              }}
+            >
+              <span className="relative z-10">신청</span>
+            </button>
+            <button
+              onClick={handleCancel}
+              className="relative px-4 py-2 rounded-lg text-sm font-bold text-gray-800 border border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 transition-colors shadow-sm overflow-hidden"
+              style={{
+                backgroundColor: 'rgba(156, 163, 175, 0.12)',
+                backgroundImage: `repeating-linear-gradient(
+                  45deg,
+                  transparent,
+                  transparent 2px,
+                  rgba(0, 0, 0, 0.04) 2px,
+                  rgba(0, 0, 0, 0.04) 2.5px
+                ),
+                repeating-linear-gradient(
+                  -45deg,
+                  transparent,
+                  transparent 2px,
+                  rgba(0, 0, 0, 0.04) 2px,
+                  rgba(0, 0, 0, 0.04) 2.5px
+                )`
+              }}
+            >
+              <span className="relative z-10">취소</span>
+            </button>
           </div>
 
           {/* Chevron Icon */}
@@ -95,7 +245,7 @@ export function AccordionPanel({ title, deadline, isExpanded, onToggle, data }: 
       >
         {isExpanded && (
           <div className="pb-4">
-            <BoardTable type={title} data={data} />
+            <BoardTable type={title} />
           </div>
         )}
       </div>
