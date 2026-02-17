@@ -9,6 +9,10 @@ data/*.xlsx
 # 라이브러리 폴더 제외
 node_modules/
 
+# Python 가상환경 제외
+venv/
+__pycache__/
+
 # 빌드 출력
 client/dist/
 

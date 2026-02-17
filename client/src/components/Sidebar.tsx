@@ -13,29 +13,58 @@ export function Sidebar({ isOpen, onClose, user, setUser }: SidebarProps) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginId, setLoginId] = useState('');
   const [loginPwd, setLoginPwd] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = () => {
     setShowLoginModal(true);
+    setLoginError('');
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 로그인 로직 (Mock)
-    if (loginId && loginPwd) {
-      setUser({
-        name: '홍길동',
-        role: '회원'
+    if (!loginId || !loginPwd) return;
+
+    setIsLoading(true);
+    setLoginError('');
+
+    try {
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: loginId, password: loginPwd }),
       });
-      setLoginId('');
-      setLoginPwd('');
-      setShowLoginModal(false);
-      alert('로그인 되었습니다.');
+
+      const data = await res.json();
+
+      if (res.ok) {
+        const userData: User = {
+          id: data.user_id,
+          name: data.user_name,
+          role: data.role,
+          token: data.token,
+        };
+        // 토큰을 localStorage에 저장하여 새로고침 시에도 유지
+        localStorage.setItem('smash_token', data.token);
+        localStorage.setItem('smash_user', JSON.stringify(userData));
+        setUser(userData);
+        setLoginId('');
+        setLoginPwd('');
+        setShowLoginModal(false);
+      } else {
+        setLoginError(data.message || '로그인에 실패했습니다.');
+      }
+    } catch {
+      setLoginError('서버에 연결할 수 없습니다.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('smash_token');
+    localStorage.removeItem('smash_user');
     setUser(null);
-    alert('로그아웃 되었습니다.');
   };
 
   const handlePasswordChange = () => {
@@ -102,6 +131,9 @@ export function Sidebar({ isOpen, onClose, user, setUser }: SidebarProps) {
                   required
                 />
               </div>
+              {loginError && (
+                <p className="text-sm text-red-600">{loginError}</p>
+              )}
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -109,6 +141,7 @@ export function Sidebar({ isOpen, onClose, user, setUser }: SidebarProps) {
                     setShowLoginModal(false);
                     setLoginId('');
                     setLoginPwd('');
+                    setLoginError('');
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                 >
@@ -116,9 +149,10 @@ export function Sidebar({ isOpen, onClose, user, setUser }: SidebarProps) {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
                 >
-                  로그인
+                  {isLoading ? '로그인 중...' : '로그인'}
                 </button>
               </div>
             </form>
