@@ -3,9 +3,10 @@ import csv
 import bcrypt
 import os
 
-# 파일명 설정
-CSV_FILE = 'smash_members_utf8.csv'
-DB_FILE = 'users.db'
+# 파일 경로 설정 (__file__ 기준 상대 경로)
+_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(_DIR, 'smash_members_utf8.csv')
+DB_FILE = os.path.join(_DIR, 'users.db')
 
 def init_database():
     # 1. DB 연결 (없으면 생성)
