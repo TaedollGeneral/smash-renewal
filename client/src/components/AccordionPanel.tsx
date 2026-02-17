@@ -18,7 +18,7 @@ interface AccordionPanelProps {
   deadline: string; // HH:MM:SS format
 }
 
-export function AccordionPanel({ title, isExpanded, onToggle, deadline }: AccordionPanelProps) {
+export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelProps) {
   const [countdown, setCountdown] = useState('23:59:59');
   const [notification1Enabled, setNotification1Enabled] = useState(false);
   const [notification2Enabled, setNotification2Enabled] = useState(false);
