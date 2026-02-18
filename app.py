@@ -14,6 +14,9 @@ if not app.config['SECRET_KEY']:
 # 앞으로 기능이 추가될 때마다 아래에 register_blueprint를 추가하면 됩니다.
 app.register_blueprint(auth_bp)
 
+from application_routes import application_bp  # 운동 신청/취소/현황 API
+app.register_blueprint(application_bp)
+
 if __name__ == '__main__':
     # 127.0.0.1로 설정하여 Nginx를 통해서만 접근 가능하도록 제한
     app.run(host='127.0.0.1', port=5000)
