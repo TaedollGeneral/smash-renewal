@@ -1,10 +1,8 @@
-import { X, Lock, Copy, Calendar, RefreshCw, LogOut, CheckCircle } from 'lucide-react';
+import { X, RefreshCw, Lock, LogOut, LogIn, CheckCircle, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import type { User, Capacity } from '@/types';
 import { PasswordChangeModal } from './PasswordChangeModal';
 import { CapacitySettingModal } from './CapacitySettingModal';
-import { AnnouncementCopyModal } from './AnnouncementCopyModal';
-import { ChangesCopyModal } from './ChangesCopyModal';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -30,9 +28,6 @@ export function Sidebar({
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
-  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
-  const [showChangesModal, setShowChangesModal] = useState(false);
-  const [currentDayForModal, setCurrentDayForModal] = useState<'수' | '금'>('수');
 
   const handleLogin = () => {
     setShowLoginModal(true);
@@ -150,26 +145,26 @@ export function Sidebar({
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">로그인</h3>
+            <h3 className="text-lg font-bold text-[#4F6D7A] mb-4">로그인</h3>
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
+                <label className="block text-sm font-medium text-[#4F6D7A] mb-1">아이디</label>
                 <input
                   type="text"
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C0D6DB]"
                   placeholder="아이디 입력"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+                <label className="block text-sm font-medium text-[#4F6D7A] mb-1">비밀번호</label>
                 <input
                   type="password"
                   value={loginPwd}
                   onChange={(e) => setLoginPwd(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C0D6DB]"
                   placeholder="비밀번호 입력"
                   required
                 />
@@ -180,20 +175,15 @@ export function Sidebar({
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowLoginModal(false);
-                    setLoginId('');
-                    setLoginPwd('');
-                    setLoginError('');
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  onClick={() => { setShowLoginModal(false); setLoginId(''); setLoginPwd(''); setLoginError(''); }}
+                  className="flex-1 px-4 py-2 bg-[#C0D6DB] text-[#4F6D7A] rounded-lg hover:bg-[#A8C4CA] transition-colors font-medium"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-[#C0D6DB] text-[#4F6D7A] rounded-lg hover:bg-[#A8C4CA] transition-colors font-medium disabled:opacity-50"
                 >
                   {isLoading ? '로그인 중...' : '로그인'}
                 </button>
@@ -217,22 +207,6 @@ export function Sidebar({
         onClose={() => setShowCapacityModal(false)}
       />
 
-      {/* Announcement Copy Modal */}
-      <AnnouncementCopyModal
-        isOpen={showAnnouncementModal}
-        onClose={() => setShowAnnouncementModal(false)}
-        currentDay={currentDayForModal}
-        setCurrentDay={setCurrentDayForModal}
-      />
-
-      {/* Changes Copy Modal */}
-      <ChangesCopyModal
-        isOpen={showChangesModal}
-        onClose={() => setShowChangesModal(false)}
-        currentDay={currentDayForModal}
-        setCurrentDay={setCurrentDayForModal}
-      />
-
       {/* Overlay */}
       <div
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
@@ -243,117 +217,93 @@ export function Sidebar({
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-80 bg-gray-50 z-50 transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 left-0 h-full w-80 bg-[#EAEAEA] z-50 transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-300 pt-[max(16px,env(safe-area-inset-top))]">
+        <div className="flex items-center justify-between p-4 border-b border-[#C8C8C8] pt-[max(16px,env(safe-area-inset-top))]">
           {user ? (
             <div className="flex flex-col">
-              <span className="font-bold text-lg text-gray-900">{user.name}</span>
-              <span className="text-xs text-gray-500 font-normal">{user.role}</span>
+              <span className="font-bold text-lg text-[#4F6D7A]">{user.name}</span>
+              <span className="text-xs text-[#4F6D7A] font-normal">{user.role}</span>
             </div>
           ) : (
             <button
               onClick={handleLogin}
-              className="font-bold text-lg text-gray-900 hover:text-gray-700 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#C0D6DB] text-[#4F6D7A] rounded-lg hover:bg-[#A8C4CA] active:bg-[#90B2B8] transition-colors font-bold shadow-md"
             >
+              <LogIn className="w-4 h-4" />
               로그인
             </button>
           )}
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+            className="p-2 hover:bg-[#C0D6DB]/40 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-700" />
+            <X className="w-5 h-5 text-[#4F6D7A]" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto h-[calc(100%-64px)] p-4 flex flex-col">
-          <div className="flex-1">
-            {/* 일반 섹션 */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-600 mb-3 px-2">일반</h3>
-              <div className="space-y-2">
-                {/* 새로고침 (Hard Refresh) */}
-                <button
-                  onClick={handleHardRefresh}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <RefreshCw className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">새로고침</span>
-                </button>
-
-                {/* 비밀번호 변경 */}
-                <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <Lock className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">비밀번호 변경</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 임원진 섹션 */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-600 mb-3 px-2">임원진</h3>
-              <div className="space-y-2">
-                {/* 운동정원 확정 */}
-                <button
-                  onClick={() => setShowCapacityModal(true)}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <CheckCircle className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">운동정원 확정</span>
-                </button>
-
-                {/* 공지용 명단 복사 */}
-                <button
-                  onClick={() => setShowAnnouncementModal(true)}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <Copy className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">공지용 명단 복사</span>
-                </button>
-
-                {/* 변경사항 복사 */}
-                <button
-                  onClick={() => setShowChangesModal(true)}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <Copy className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">변경사항 복사</span>
-                </button>
-
-                {/* 이번주 오픈/마감 조정 */}
-                <button
-                  onClick={handleScheduleAdjustment}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <Calendar className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">이번주 오픈/마감 조정</span>
-                </button>
-
-                {/* 업데이트 */}
-                <button
-                  onClick={handleUpdate}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <RefreshCw className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">업데이트</span>
-                </button>
-              </div>
+        <div className="overflow-y-auto h-[calc(100%-72px)] p-4 flex flex-col gap-6">
+          {/* 일반 섹션 */}
+          <div>
+            <h3 className="text-xs font-semibold text-[#4F6D7A]/60 uppercase tracking-wider mb-3 px-1">일반</h3>
+            <div className="space-y-2">
+              <button
+                onClick={handleHardRefresh}
+                className="w-full flex items-center gap-3 p-3 bg-[#C0D6DB] rounded-lg hover:bg-[#A8C4CA] transition-colors"
+              >
+                <RefreshCw className="w-5 h-5 text-[#4F6D7A] flex-shrink-0" />
+                <span className="text-sm text-[#4F6D7A]">새로고침</span>
+              </button>
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full flex items-center gap-3 p-3 bg-[#C0D6DB] rounded-lg hover:bg-[#A8C4CA] transition-colors"
+              >
+                <Lock className="w-5 h-5 text-[#4F6D7A] flex-shrink-0" />
+                <span className="text-sm text-[#4F6D7A]">비밀번호 변경</span>
+              </button>
             </div>
           </div>
 
-          {/* Logout Button */}
+          {/* 임원진 섹션 */}
+          <div>
+            <h3 className="text-xs font-semibold text-[#4F6D7A]/60 uppercase tracking-wider mb-3 px-1">임원진</h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowCapacityModal(true)}
+                className="w-full flex items-center gap-3 p-3 bg-[#C0D6DB] rounded-lg hover:bg-[#A8C4CA] transition-colors"
+              >
+                <CheckCircle className="w-5 h-5 text-[#4F6D7A] flex-shrink-0" />
+                <span className="text-sm text-[#4F6D7A]">운동정원 확정</span>
+              </button>
+              <button
+                onClick={handleScheduleAdjustment}
+                className="w-full flex items-center gap-3 p-3 bg-[#C0D6DB] rounded-lg hover:bg-[#A8C4CA] transition-colors"
+              >
+                <Calendar className="w-5 h-5 text-[#4F6D7A] flex-shrink-0" />
+                <span className="text-sm text-[#4F6D7A]">이번주 오픈/마감 조정</span>
+              </button>
+              <button
+                onClick={handleUpdate}
+                className="w-full flex items-center gap-3 p-3 bg-[#C0D6DB] rounded-lg hover:bg-[#A8C4CA] transition-colors"
+              >
+                <RefreshCw className="w-5 h-5 text-[#4F6D7A] flex-shrink-0" />
+                <span className="text-sm text-[#4F6D7A]">업데이트</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Logout */}
           {user && (
             <button
               onClick={handleLogout}
-              className="mb-6 w-full flex items-center justify-center gap-2 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-2 p-3 text-[#4F6D7A] hover:text-[#4F6D7A] hover:bg-[#C0D6DB] rounded-lg transition-colors border border-[#C0D6DB] hover:border-[#A8C4CA]"
             >
               <LogOut className="w-4 h-4" />
               <span className="text-sm">로그아웃</span>

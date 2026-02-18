@@ -50,18 +50,17 @@ export function AccordionPanel({
   }); // deps 없음 - 매 렌더 후 항상 최신 콜백으로 갱신
 
   const [notification1Enabled, setNotification1Enabled] = useState(false);
-  const [notification2Enabled, setNotification2Enabled] = useState(false);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
 
   // 상태에 따른 카운트다운 색상 결정
   const getCountdownColor = () => {
     switch (status) {
-      case 'before-open': return 'text-gray-900';
-      case 'open': return 'text-green-600';
+      case 'before-open': return 'text-white';
+      case 'open': return 'text-green-400';
       case 'cancel-period': return 'text-red-400';
-      case 'waiting': return 'text-gray-900';
-      default: return 'text-green-600';
+      case 'waiting': return 'text-gray-400';
+      default: return 'text-green-400';
     }
   };
 
@@ -149,17 +148,11 @@ export function AccordionPanel({
   const handleNotification1Toggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNotification1Enabled(!notification1Enabled);
-    console.log(`${title} - 알림1: ${!notification1Enabled ? '켜짐' : '꺼짐'}`);
-  };
-
-  const handleNotification2Toggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setNotification2Enabled(!notification2Enabled);
-    console.log(`${title} - 알림2: ${!notification2Enabled ? '켜짐' : '꺼짐'}`);
+    console.log(`${title} - 알림: ${!notification1Enabled ? '켜짐' : '꺼짐'}`);
   };
 
   return (
-    <div className="border-b border-gray-300 bg-gray-50">
+    <div className="bg-[#222222] shadow-md">
       {/* Participant Modal */}
       {showParticipantModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
@@ -174,7 +167,7 @@ export function AccordionPanel({
                   type="text"
                   value={participantName}
                   onChange={(e) => setParticipantName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1C5D99]"
                   placeholder="이름 입력"
                   autoFocus
                   required
@@ -187,13 +180,13 @@ export function AccordionPanel({
                     setShowParticipantModal(false);
                     setParticipantName('');
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  className="flex-1 px-4 py-2 bg-[#C0D6DB] text-[#4F6D7A] rounded-lg hover:bg-[#A8C4CA] transition-colors font-medium"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                  className="flex-1 px-4 py-2 bg-[#C0D6DB] text-[#4F6D7A] rounded-lg hover:bg-[#A8C4CA] transition-colors font-medium"
                 >
                   확인
                 </button>
@@ -206,104 +199,76 @@ export function AccordionPanel({
       {/* Accordion Header */}
       <button
         onClick={onToggle}
-        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-[#2e2e2e] transition-colors"
       >
         {/* Left: Chevron + Icon + Title */}
         <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
           <ChevronDown
-            className={`w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 ${
+            className={`w-4 h-4 text-gray-300 transition-transform duration-200 flex-shrink-0 ${
               isExpanded ? 'rotate-180' : ''
             }`}
           />
           <span className="text-base">{boardIcons[title]}</span>
-          <span className="font-semibold text-sm text-gray-900 whitespace-nowrap">
-            {title}{capacity !== undefined && ` (${capacity})`}
+          <span className="font-semibold text-sm text-white whitespace-nowrap">
+            {title}{capacity !== undefined && `(${capacity})`}
           </span>
         </div>
 
         {/* Right: Notification + Countdown + Action Buttons */}
         <div className="flex items-center gap-1.5 ml-1">
-          {/* Notification Buttons */}
+          {/* Notification Button */}
           <div className="flex gap-0.5">
             <button onClick={handleNotification1Toggle} className="p-1 rounded-lg transition-colors relative">
               <Bell
                 className={`w-4 h-4 ${
-                  notification1Enabled ? 'text-blue-600 fill-blue-600' : 'text-blue-300 fill-blue-100'
+                  notification1Enabled ? 'text-[#C0D6DB] fill-[#C0D6DB]' : 'text-gray-500 fill-gray-700'
                 }`}
               />
               {!notification1Enabled && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-5 h-[1.5px] bg-blue-300 -rotate-45" />
-                </div>
-              )}
-            </button>
-            <button onClick={handleNotification2Toggle} className="p-1 rounded-lg transition-colors relative">
-              <Bell
-                className={`w-4 h-4 ${
-                  notification2Enabled ? 'text-red-600 fill-red-600' : 'text-red-300 fill-red-100'
-                }`}
-              />
-              {!notification2Enabled && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-5 h-[1.5px] bg-red-300 -rotate-45" />
+                  <div className="w-5 h-[1.5px] bg-gray-500 -rotate-45" />
                 </div>
               )}
             </button>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-7 bg-gray-300" />
+          <div className="w-px h-7 bg-white/20" />
 
           {/* Countdown */}
           <div className="flex flex-col items-end ml-1.5">
-            <span className="text-[8px] leading-tight text-gray-500">{statusText}</span>
+            <span className="text-[8px] leading-tight text-gray-400">{statusText}</span>
             <span className={`text-sm font-bold tabular-nums leading-tight ${getCountdownColor()}`}>
               {formatTime(remainingMilliseconds)}
             </span>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-7 bg-gray-300" />
+          <div className="w-px h-7 bg-white/20" />
 
           {/* Action Buttons */}
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <button
               onClick={handleCancel}
               disabled={!isCancelEnabled}
-              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-sm overflow-hidden whitespace-nowrap transition-all ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${
                 isCancelEnabled
-                  ? 'text-gray-800 border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 cursor-pointer'
-                  : 'text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                  ? 'bg-[#C0D6DB] text-[#4F6D7A] border-[#C0D6DB] hover:bg-[#A8C4CA] active:bg-[#90B2B8] cursor-pointer'
+                  : 'bg-[#C0D6DB]/20 text-gray-500 border-[#C0D6DB]/20 cursor-not-allowed opacity-40'
               }`}
-              style={
-                isCancelEnabled
-                  ? {
-                      backgroundColor: 'rgba(156, 163, 175, 0.12)',
-                      backgroundImage: `repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px)`,
-                    }
-                  : { backgroundColor: 'rgba(229, 231, 235, 0.3)' }
-              }
             >
-              <span className="relative z-10">취소</span>
+              취소
             </button>
             <button
               onClick={handleApply}
               disabled={!isApplyEnabled}
-              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-sm overflow-hidden whitespace-nowrap transition-all ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${
                 isApplyEnabled
-                  ? 'text-gray-800 border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 cursor-pointer'
-                  : 'text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                  ? 'bg-[#C0D6DB] text-[#4F6D7A] border-[#C0D6DB] hover:bg-[#A8C4CA] active:bg-[#90B2B8] cursor-pointer'
+                  : 'bg-[#C0D6DB]/20 text-gray-500 border-[#C0D6DB]/20 cursor-not-allowed opacity-40'
               }`}
-              style={
-                isApplyEnabled
-                  ? {
-                      backgroundColor: 'rgba(156, 163, 175, 0.12)',
-                      backgroundImage: `repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px)`,
-                    }
-                  : { backgroundColor: 'rgba(229, 231, 235, 0.3)' }
-              }
             >
-              <span className="relative z-10">신청</span>
+              신청
             </button>
           </div>
         </div>
