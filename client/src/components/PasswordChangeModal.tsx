@@ -102,13 +102,13 @@ export function PasswordChangeModal({ isOpen, onClose }: PasswordChangeModalProp
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-[#1C5D99] text-white rounded-lg hover:bg-[#155090] transition-colors font-medium"
             >
               취소
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-[#1C5D99] text-white rounded-lg hover:bg-[#155090] transition-colors font-medium"
             >
               변경
             </button>

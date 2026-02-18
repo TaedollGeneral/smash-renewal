@@ -83,8 +83,8 @@ export function CapacitySettingModal({
             onClick={() => setCurrentDay('수')}
             className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
               currentDay === '수'
-                ? 'bg-gray-700 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-[#1C5D99] text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
             }`}
           >
             수요일
@@ -94,8 +94,8 @@ export function CapacitySettingModal({
             onClick={() => setCurrentDay('금')}
             className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
               currentDay === '금'
-                ? 'bg-gray-700 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-[#1C5D99] text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
             }`}
           >
             금요일
@@ -133,13 +133,13 @@ export function CapacitySettingModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-[#1C5D99] text-white rounded-lg hover:bg-[#155090] transition-colors font-medium"
             >
               취소
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-[#1C5D99] text-white rounded-lg hover:bg-[#155090] transition-colors font-medium"
             >
               {currentDay}요일 확정
             </button>
