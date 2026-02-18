@@ -4,11 +4,6 @@ import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
 import type { DayType, BoardType, User, Capacity, CategoryState } from '@/types';
 
-// ─── 서버 API 엔드포인트 ────────────────────────────────────────────────────
-// GET /api/capacities?semester=&week=        → { 수: number, 금: number }
-// GET /api/category-states?semester=&week=   → Record<DayType, Record<BoardType, CategoryState>>
-// GET /api/board-data?semester=&week=        → 게시판 현황
-// ────────────────────────────────────────────────────────────────────────────
 
 function App() {
   const [currentDay, setCurrentDay] = useState<DayType>('수');
@@ -80,14 +75,11 @@ function App() {
     },
   });
 
-  const [semester, setSemester] = useState('1');
-  const [week, setWeek] = useState('3');
-
   // ─── 1. 정원 fetch (실제 서버 호출) ─────────────────────────────────────────
   // 폴링: 5분에 한번 + soft refresh
   const fetchCapacities = useCallback(async () => {
     try {
-      const response = await fetch(`/api/capacities?semester=${semester}&week=${week}`);
+      const response = await fetch(`/api/capacities`);
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
@@ -96,7 +88,7 @@ function App() {
     } catch (error) {
       console.error('[정원] 갱신 실패:', error);
     }
-  }, [semester, week]);
+  }, []);
 
   // ─── 2. 카운트다운/상태 fetch (실제 서버 호출) ──────────────────────────────
   // 폴링: 5분에 한번 + soft refresh + 카운트다운 종료 시
@@ -117,7 +109,7 @@ function App() {
   // 폴링: 2초에 한번 + soft refresh
   const fetchBoardData = useCallback(async () => {
     try {
-      const response = await fetch(`/api/board-data?semester=${semester}&week=${week}`);
+      const response = await fetch(`/api/board-data`);
       if (!response.ok) throw new Error('Network response was not ok');
 
       // const data = await response.json();
@@ -126,7 +118,7 @@ function App() {
     } catch (error) {
       console.error('[게시판 현황] 갱신 실패:', error);
     }
-  }, [semester, week]);
+  }, []);
 
   // ─── 폴링 인터벌 설정 ───────────────────────────────────────────────────────
 
@@ -210,11 +202,6 @@ function App() {
     // TODO: 백엔드 API 호출 (임원진 정원 확정)
   };
 
-  const handleSemesterWeekChange = (newSemester: string, newWeek: string) => {
-    setSemester(newSemester);
-    setWeek(newWeek);
-  };
-
   const accordionPanels: Record<DayType, BoardType[]> = {
     '수': ['운동', '게스트', '레슨', '잔여석'],
     '금': ['운동', '게스트', '잔여석'],
@@ -239,14 +226,9 @@ function App() {
         setUser={setUser}
         capacities={capacities}
         onCapacitiesChange={handleCapacitiesChange}
-        semester={semester}
-        week={week}
-        onSemesterWeekChange={handleSemesterWeekChange}
       />
 
       <Header
-        semester={semester}
-        week={week}
         currentDay={currentDay}
         onDayChange={setCurrentDay}
         onMenuClick={() => setIsSidebarOpen(true)}

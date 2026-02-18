@@ -2,15 +2,13 @@ import { Menu } from 'lucide-react';
 import type { DayType, User } from '@/types';
 
 interface HeaderProps {
-  semester: string;
-  week: string;
   currentDay: DayType;
   onDayChange: (day: DayType) => void;
   onMenuClick: () => void;
   user: User | null;
 }
 
-export function Header({ semester, week, currentDay, onDayChange, onMenuClick, user }: HeaderProps) {
+export function Header({ currentDay, onDayChange, onMenuClick, user }: HeaderProps) {
   return (
     <header className="bg-gray-50 shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))] border-b border-gray-300">
       <div className="flex items-center justify-between">
@@ -25,7 +23,6 @@ export function Header({ semester, week, currentDay, onDayChange, onMenuClick, u
         {/* Center: Title */}
         <div className="flex-1 mx-4">
           <h1 className="font-bold text-lg text-gray-900">2026 SMASH</h1>
-          <p className="text-sm text-gray-600">{semester}학기 {week}주차</p>
         </div>
 
         {/* User Info (if logged in) */}

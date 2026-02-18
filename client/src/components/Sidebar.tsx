@@ -1,9 +1,8 @@
-import { X, Lock, Copy, Settings, Calendar, RefreshCw, LogOut, CheckCircle } from 'lucide-react';
+import { X, Lock, Copy, Calendar, RefreshCw, LogOut, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { User, Capacity } from '@/types';
 import { PasswordChangeModal } from './PasswordChangeModal';
 import { CapacitySettingModal } from './CapacitySettingModal';
-import { SemesterSettingModal } from './SemesterSettingModal';
 import { AnnouncementCopyModal } from './AnnouncementCopyModal';
 import { ChangesCopyModal } from './ChangesCopyModal';
 
@@ -14,9 +13,6 @@ interface SidebarProps {
   setUser: (user: User | null) => void;
   capacities: Capacity;
   onCapacitiesChange: (capacities: Capacity) => void;
-  semester: string;
-  week: string;
-  onSemesterWeekChange: (semester: string, week: string) => void;
 }
 
 export function Sidebar({
@@ -26,9 +22,6 @@ export function Sidebar({
   setUser,
   capacities,
   onCapacitiesChange,
-  semester,
-  week,
-  onSemesterWeekChange,
 }: SidebarProps) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginId, setLoginId] = useState('');
@@ -37,7 +30,6 @@ export function Sidebar({
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
-  const [showSemesterModal, setShowSemesterModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showChangesModal, setShowChangesModal] = useState(false);
   const [currentDayForModal, setCurrentDayForModal] = useState<'수' | '금'>('수');
@@ -225,15 +217,6 @@ export function Sidebar({
         onClose={() => setShowCapacityModal(false)}
       />
 
-      {/* Semester Setting Modal */}
-      <SemesterSettingModal
-        isOpen={showSemesterModal}
-        currentSemester={semester}
-        currentWeek={week}
-        onSave={onSemesterWeekChange}
-        onClose={() => setShowSemesterModal(false)}
-      />
-
       {/* Announcement Copy Modal */}
       <AnnouncementCopyModal
         isOpen={showAnnouncementModal}
@@ -352,15 +335,6 @@ export function Sidebar({
                 >
                   <Calendar className="w-5 h-5 text-gray-700" />
                   <span className="text-sm text-gray-900">이번주 오픈/마감 조정</span>
-                </button>
-
-                {/* 학기/주차 설정 */}
-                <button
-                  onClick={() => setShowSemesterModal(true)}
-                  className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  <Settings className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-900">학기/주차 설정</span>
                 </button>
 
                 {/* 업데이트 */}
