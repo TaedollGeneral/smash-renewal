@@ -1,0 +1,5 @@
+nohup: ignoring input
+Traceback (most recent call last):
+  File "/home/ubuntu/smash-renewal/app.py", line 11, in <module>
+    raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
+RuntimeError: 환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.
