@@ -1,16 +1,13 @@
 # application_routes.py — 운동 신청/취소/현황 API Blueprint
-from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify
-from scheduler_logic import get_current_status, Status, Category
+from renewal.time_control.scheduler_logic import Category, get_current_status
+from renewal.time_control.time_handler import (
+    _now_kst,
+    validate_apply_time,
+    validate_cancel_time,
+)
 
 application_bp = Blueprint('application', __name__)
-
-KST = timezone(timedelta(hours=9))
-
-
-def _now_kst() -> datetime:
-    """현재 KST 시각을 반환한다."""
-    return datetime.now(KST)
 
 
 def _validate_category(category: str | None) -> str | None:
@@ -30,31 +27,21 @@ def apply():
     data = request.get_json() or {}
     category = data.get('category')
 
-    # 카테고리 검증
     error = _validate_category(category)
     if error:
         return jsonify({"error": error}), 400
 
-    # Guard Clause: 시간 규칙 검증
+    # Guard Clause: time_handler에서 시간 규칙 검증
     now = _now_kst()
-    status = get_current_status(category, now)
-
-    if status != Status.OPEN:
-        messages = {
-            Status.BEFORE_OPEN: "아직 신청이 오픈되지 않았습니다.",
-            Status.CANCEL_ONLY: "신청 마감 후 취소만 가능한 시간입니다.",
-            Status.CLOSED: "신청이 마감되었습니다.",
-        }
-        return jsonify({
-            "error": messages.get(status, "신청 가능한 시간이 아닙니다."),
-            "status": status,
-        }), 400
+    time_error = validate_apply_time(category, now)
+    if time_error:
+        return jsonify({"error": time_error}), 400
 
     # TODO: DB에 신청 데이터 저장
     # user = request.current_user  (token_required 데코레이터 사용 시)
     # db.insert_application(user['id'], category, now)
 
-    return jsonify({"message": "신청이 완료되었습니다.", "status": status}), 200
+    return jsonify({"message": "신청이 완료되었습니다."}), 200
 
 
 @application_bp.route('/cancel', methods=['POST'])
@@ -63,30 +50,21 @@ def cancel():
     data = request.get_json() or {}
     category = data.get('category')
 
-    # 카테고리 검증
     error = _validate_category(category)
     if error:
         return jsonify({"error": error}), 400
 
-    # Guard Clause: 시간 규칙 검증
+    # Guard Clause: time_handler에서 시간 규칙 검증
     now = _now_kst()
-    status = get_current_status(category, now)
-
-    if status not in (Status.OPEN, Status.CANCEL_ONLY):
-        messages = {
-            Status.BEFORE_OPEN: "아직 신청이 오픈되지 않았습니다.",
-            Status.CLOSED: "취소 기간이 종료되었습니다.",
-        }
-        return jsonify({
-            "error": messages.get(status, "취소 가능한 시간이 아닙니다."),
-            "status": status,
-        }), 400
+    time_error = validate_cancel_time(category, now)
+    if time_error:
+        return jsonify({"error": time_error}), 400
 
     # TODO: DB에서 신청 데이터 삭제
     # user = request.current_user
     # db.delete_application(user['id'], category)
 
-    return jsonify({"message": "취소가 완료되었습니다.", "status": status}), 200
+    return jsonify({"message": "취소가 완료되었습니다."}), 200
 
 
 @application_bp.route('/status', methods=['GET'])
@@ -94,7 +72,6 @@ def get_status():
     """현황 조회 API — 현재 상태와 신청 목록 반환"""
     category = request.args.get('category')
 
-    # 카테고리 검증
     error = _validate_category(category)
     if error:
         return jsonify({"error": error}), 400
