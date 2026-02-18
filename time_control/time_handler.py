@@ -61,10 +61,6 @@ _CATEGORY_MAP: list[tuple[str, str, str]] = [
 def get_category_states():
     """카테고리별 현재 상태와 마감 타임스탬프를 반환한다.
 
-    Query params (무시되지 않음 — 추후 DB 연동 시 주차 필터링에 사용):
-        semester: str   예) "1"
-        week:     str   예) "3"
-
     Response (JSON):
         {
           "수": {
@@ -111,18 +107,11 @@ def get_category_states():
 def get_capacities():
     """운동 정원을 반환한다.
 
-    Query params (추후 DB 연동 시 주차별 정원 조회에 사용):
-        semester: str
-        week:     str
-
     Response (JSON):
         { "수": number, "금": number }
 
-    TODO: DB에서 임원진이 설정한 해당 주차 정원을 조회하도록 교체.
+    TODO: DB에서 임원진이 설정한 정원을 조회하도록 교체.
     """
-    # TODO: semester/week 파라미터로 DB 조회
-    # semester = request.args.get("semester", "1")
-    # week     = request.args.get("week", "1")
     return jsonify({"수": 12, "금": 14}), 200
 
 
