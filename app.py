@@ -14,7 +14,7 @@ if not app.config['SECRET_KEY']:
 # 앞으로 기능이 추가될 때마다 아래에 register_blueprint를 추가하면 됩니다.
 app.register_blueprint(auth_bp)
 
-from renewal.time_control.time_handler import time_bp  # 시간 상태 폴링 API
+from time_control.time_handler import time_bp  # 시간 상태 폴링 API
 app.register_blueprint(time_bp)
 
 from application_routes import application_bp  # 운동 신청/취소/현황 API
