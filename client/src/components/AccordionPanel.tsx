@@ -1,7 +1,7 @@
 import { ChevronDown, Bell } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BoardTable } from './BoardTable';
-import type { BoardType } from '@/types';
+import type { BoardType, CategoryState } from '@/types';
 
 // 각 게시판 타입에 맞는 이모티콘
 const boardIcons: Record<BoardType, string> = {
@@ -15,33 +15,113 @@ interface AccordionPanelProps {
   title: BoardType;
   isExpanded: boolean;
   onToggle: () => void;
-  deadline: string; // HH:MM:SS format
+  dayType: '수' | '금';
+  capacity?: number; // 운동 정원 (서버 응답에서 수신)
+  /**
+   * 서버에서 받아온 카테고리 상태
+   * deadlineTimestamp: 절대 시각(Unix ms) → 폴링과 무관하게 클라이언트가 연속 계산
+   */
+  categoryState: CategoryState;
+  onCountdownZero?: () => void;
 }
 
-export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelProps) {
-  const [countdown, setCountdown] = useState('23:59:59');
+export function AccordionPanel({
+  title,
+  isExpanded,
+  onToggle,
+  dayType: _dayType,
+  capacity,
+  categoryState,
+  onCountdownZero,
+}: AccordionPanelProps) {
+  const { status, statusText, deadlineTimestamp } = categoryState;
+
+  // 카운트다운 상태: deadlineTimestamp - Date.now() 로 직접 계산
+  const [remainingMilliseconds, setRemainingMilliseconds] = useState(() =>
+    Math.max(0, deadlineTimestamp - Date.now())
+  );
+
+  // hasCalledZero를 ref로 관리 → useEffect deps에 포함시키지 않아도 됨
+  const hasCalledZeroRef = useRef(false);
+  // onCountdownZero를 ref로 래핑 → deadlineTimestamp가 같으면 타이머가 재시작되지 않음
+  const onCountdownZeroRef = useRef(onCountdownZero);
+  useEffect(() => {
+    onCountdownZeroRef.current = onCountdownZero;
+  }); // deps 없음 - 매 렌더 후 항상 최신 콜백으로 갱신
+
   const [notification1Enabled, setNotification1Enabled] = useState(false);
   const [notification2Enabled, setNotification2Enabled] = useState(false);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
 
+  // 상태에 따른 카운트다운 색상 결정
+  const getCountdownColor = () => {
+    switch (status) {
+      case 'before-open': return 'text-gray-900';
+      case 'open': return 'text-green-600';
+      case 'cancel-period': return 'text-red-400';
+      case 'waiting': return 'text-gray-900';
+      default: return 'text-green-600';
+    }
+  };
+
+  // 버튼 활성화 상태 결정
+  const isApplyEnabled = status === 'open';
+  const isCancelEnabled = status === 'open' || status === 'cancel-period';
+
+  // 밀리초를 적절한 형식으로 변환
+  const formatTime = (milliseconds: number) => {
+    if (milliseconds <= 0) return '00:00:00';
+
+    const totalSeconds = Math.floor(milliseconds / 1000);
+
+    // 1분(60초) 미만일 때: MM:SS.mm (분:초.밀리초)
+    if (totalSeconds < 60) {
+      const s = totalSeconds % 60;
+      const ms = Math.floor((milliseconds % 1000) / 10);
+      return `00:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+    }
+
+    // 1분 이상일 때: HH:MM:SS (시:분:초)
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  /**
+   * 카운트다운 타이머
+   *
+   * deadlineTimestamp(절대 시각) 기준으로 매 100ms마다 Date.now()와의 차이를 계산.
+   * → 폴링으로 categoryState가 갱신되어도 deadlineTimestamp가 동일하면
+   *   이 effect는 재실행되지 않으므로 타이머가 리셋/점프되지 않음.
+   * → 서버가 실제로 마감 시간을 변경했을 때만 타이머가 새로 시작됨.
+   */
   useEffect(() => {
-    // Mock countdown timer
+    hasCalledZeroRef.current = false;
+
+    // 즉시 초기값 반영 (effect 재실행 시 깜빡임 방지)
+    const initial = Math.max(0, deadlineTimestamp - Date.now());
+    setRemainingMilliseconds(initial);
+
+    if (deadlineTimestamp <= 0) return;
+
+    const intervalMs = 100;
     const interval = setInterval(() => {
-      const now = new Date();
-      const hours = String(23 - now.getHours()).padStart(2, '0');
-      const minutes = String(59 - now.getMinutes()).padStart(2, '0');
-      const seconds = String(59 - now.getSeconds()).padStart(2, '0');
-      setCountdown(`${hours}:${minutes}:${seconds}`);
-    }, 1000);
+      const remaining = Math.max(0, deadlineTimestamp - Date.now());
+      setRemainingMilliseconds(remaining);
+
+      if (remaining === 0 && !hasCalledZeroRef.current && onCountdownZeroRef.current) {
+        hasCalledZeroRef.current = true;
+        onCountdownZeroRef.current();
+      }
+    }, intervalMs);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [deadlineTimestamp]); // onCountdownZero는 ref로 관리하므로 deps 불필요
 
   const handleApply = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 아코디언 토글 방지
-
-    // 게스트와 잔여석은 참여인원 입력 모달 표시
+    e.stopPropagation();
     if (title === '게스트' || title === '잔여석') {
       setShowParticipantModal(true);
     } else {
@@ -61,19 +141,19 @@ export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelPr
   };
 
   const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 아코디언 토글 방지
+    e.stopPropagation();
     console.log(`${title} - 취소 실행`);
     alert(`${title} 취소가 완료되었습니다.`);
   };
 
   const handleNotification1Toggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 아코디언 토글 방지
+    e.stopPropagation();
     setNotification1Enabled(!notification1Enabled);
     console.log(`${title} - 알림1: ${!notification1Enabled ? '켜짐' : '꺼짐'}`);
   };
 
   const handleNotification2Toggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 아코디언 토글 방지
+    e.stopPropagation();
     setNotification2Enabled(!notification2Enabled);
     console.log(`${title} - 알림2: ${!notification2Enabled ? '켜짐' : '꺼짐'}`);
   };
@@ -130,43 +210,44 @@ export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelPr
       >
         {/* Left: Chevron + Icon + Title */}
         <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
-          {/* Chevron Icon */}
           <ChevronDown
             className={`w-4 h-4 text-gray-600 transition-transform duration-200 flex-shrink-0 ${
               isExpanded ? 'rotate-180' : ''
             }`}
           />
           <span className="text-base">{boardIcons[title]}</span>
-          <span className="font-semibold text-sm text-gray-900 whitespace-nowrap">{title}</span>
+          <span className="font-semibold text-sm text-gray-900 whitespace-nowrap">
+            {title}{capacity !== undefined && ` (${capacity})`}
+          </span>
         </div>
 
         {/* Right: Notification + Countdown + Action Buttons */}
         <div className="flex items-center gap-1.5 ml-1">
           {/* Notification Buttons */}
           <div className="flex gap-0.5">
-            <button
-              onClick={handleNotification1Toggle}
-              className="p-1 rounded-lg transition-colors"
-            >
+            <button onClick={handleNotification1Toggle} className="p-1 rounded-lg transition-colors relative">
               <Bell
                 className={`w-4 h-4 ${
-                  notification1Enabled
-                    ? 'text-blue-600 fill-blue-600'
-                    : 'text-blue-300 fill-blue-100'
+                  notification1Enabled ? 'text-blue-600 fill-blue-600' : 'text-blue-300 fill-blue-100'
                 }`}
               />
+              {!notification1Enabled && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-5 h-[1.5px] bg-blue-300 -rotate-45" />
+                </div>
+              )}
             </button>
-            <button
-              onClick={handleNotification2Toggle}
-              className="p-1 rounded-lg transition-colors"
-            >
+            <button onClick={handleNotification2Toggle} className="p-1 rounded-lg transition-colors relative">
               <Bell
                 className={`w-4 h-4 ${
-                  notification2Enabled
-                    ? 'text-red-600 fill-red-600'
-                    : 'text-red-300 fill-red-100'
+                  notification2Enabled ? 'text-red-600 fill-red-600' : 'text-red-300 fill-red-100'
                 }`}
               />
+              {!notification2Enabled && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-5 h-[1.5px] bg-red-300 -rotate-45" />
+                </div>
+              )}
             </button>
           </div>
 
@@ -175,9 +256,9 @@ export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelPr
 
           {/* Countdown */}
           <div className="flex flex-col items-end ml-1.5">
-            <span className="text-[9px] text-gray-500 leading-tight">23:59까지</span>
-            <span className="text-sm font-bold text-gray-900 tabular-nums leading-tight">
-              {countdown}
+            <span className="text-[8px] leading-tight text-gray-500">{statusText}</span>
+            <span className={`text-sm font-bold tabular-nums leading-tight ${getCountdownColor()}`}>
+              {formatTime(remainingMilliseconds)}
             </span>
           </div>
 
@@ -187,50 +268,42 @@ export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelPr
           {/* Action Buttons */}
           <div className="flex gap-1">
             <button
-              onClick={handleApply}
-              className="relative px-2.5 py-1.5 rounded-lg text-xs font-bold text-gray-800 border border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 transition-colors shadow-sm overflow-hidden whitespace-nowrap"
-              style={{
-                backgroundColor: 'rgba(156, 163, 175, 0.12)',
-                backgroundImage: `repeating-linear-gradient(
-                  45deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(0, 0, 0, 0.04) 2px,
-                  rgba(0, 0, 0, 0.04) 2.5px
-                ),
-                repeating-linear-gradient(
-                  -45deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(0, 0, 0, 0.04) 2px,
-                  rgba(0, 0, 0, 0.04) 2.5px
-                )`
-              }}
-            >
-              <span className="relative z-10">신청</span>
-            </button>
-            <button
               onClick={handleCancel}
-              className="relative px-2.5 py-1.5 rounded-lg text-xs font-bold text-gray-800 border border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 transition-colors shadow-sm overflow-hidden whitespace-nowrap"
-              style={{
-                backgroundColor: 'rgba(156, 163, 175, 0.12)',
-                backgroundImage: `repeating-linear-gradient(
-                  45deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(0, 0, 0, 0.04) 2px,
-                  rgba(0, 0, 0, 0.04) 2.5px
-                ),
-                repeating-linear-gradient(
-                  -45deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(0, 0, 0, 0.04) 2px,
-                  rgba(0, 0, 0, 0.04) 2.5px
-                )`
-              }}
+              disabled={!isCancelEnabled}
+              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-sm overflow-hidden whitespace-nowrap transition-all ${
+                isCancelEnabled
+                  ? 'text-gray-800 border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 cursor-pointer'
+                  : 'text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+              }`}
+              style={
+                isCancelEnabled
+                  ? {
+                      backgroundColor: 'rgba(156, 163, 175, 0.12)',
+                      backgroundImage: `repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px)`,
+                    }
+                  : { backgroundColor: 'rgba(229, 231, 235, 0.3)' }
+              }
             >
               <span className="relative z-10">취소</span>
+            </button>
+            <button
+              onClick={handleApply}
+              disabled={!isApplyEnabled}
+              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-sm overflow-hidden whitespace-nowrap transition-all ${
+                isApplyEnabled
+                  ? 'text-gray-800 border-gray-300 hover:bg-gray-200/50 active:bg-gray-200/70 cursor-pointer'
+                  : 'text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+              }`}
+              style={
+                isApplyEnabled
+                  ? {
+                      backgroundColor: 'rgba(156, 163, 175, 0.12)',
+                      backgroundImage: `repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 2.5px)`,
+                    }
+                  : { backgroundColor: 'rgba(229, 231, 235, 0.3)' }
+              }
+            >
+              <span className="relative z-10">신청</span>
             </button>
           </div>
         </div>
@@ -238,15 +311,13 @@ export function AccordionPanel({ title, isExpanded, onToggle }: AccordionPanelPr
 
       {/* Accordion Content */}
       <div
-        className={`accordion-content overflow-hidden transition-all duration-300 ${
-          isExpanded ? 'max-h-[500px]' : 'max-h-0'
+        className={`accordion-content overflow-hidden transition-all duration-500 ease-in-out ${
+          isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        {isExpanded && (
-          <div className="pb-4">
-            <BoardTable type={title} />
-          </div>
-        )}
+        <div className="pb-4">
+          <BoardTable type={title} />
+        </div>
       </div>
     </div>
   );
