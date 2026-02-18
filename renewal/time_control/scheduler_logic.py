@@ -104,6 +104,7 @@ def get_current_status(category: str, now: datetime) -> str:
 def get_next_change(category: str, now: datetime) -> tuple[datetime, str]:
     """다음 상태 전환 시각과 전환될 상태를 (datetime, status) 튜플로 반환한다.
     이번 주 남은 전환이 없으면 다음 주 토요일 BEFORE_OPEN을 반환한다.
+    CLOSED 상태에서는 돌아오는 토요일 00:00을 반환하므로 카운트다운에 직접 사용 가능.
     """
     week_start = _get_week_start(now)
     transitions = _get_transitions(category, week_start)
@@ -112,5 +113,5 @@ def get_next_change(category: str, now: datetime) -> tuple[datetime, str]:
         if now < transition_time:
             return transition_time, status
 
-    # 이번 주 전환이 모두 지남 → 다음 주 토요일 00:00
+    # 이번 주 전환이 모두 지남(= CLOSED) → 다음 주 토요일 00:00
     return week_start + timedelta(days=7), Status.BEFORE_OPEN
