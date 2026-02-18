@@ -49,7 +49,8 @@ app.use((req, res, next) => {
     const isFlask = FLASK_PREFIXES.some(p => req.path === p || req.path.startsWith(p));
     if (!isFlask) return next();
 
-    const bodyStr = JSON.stringify(req.body);
+    // GET/HEAD 등 body 없는 요청에서 req.body가 undefined이므로 빈 문자열로 처리
+    const bodyStr = req.body ? JSON.stringify(req.body) : '';
     const options = {
         hostname: '127.0.0.1',
         port: FLASK_PORT,
@@ -73,7 +74,7 @@ app.use((req, res, next) => {
         res.status(502).json({ error: 'Flask 서버에 연결할 수 없습니다.' });
     });
 
-    proxy.write(bodyStr);
+    if (bodyStr) proxy.write(bodyStr);
     proxy.end();
 });
 // ─────────────────────────────────────────────────────────────────────────────
