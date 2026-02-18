@@ -1,7 +1,7 @@
 # application_routes.py — 운동 신청/취소/현황 API Blueprint
 from flask import Blueprint, request, jsonify
-from renewal.time_control.scheduler_logic import Category, get_current_status
-from renewal.time_control.time_handler import (
+from time_control.scheduler_logic import Category, get_current_status
+from time_control.time_handler import (
     _now_kst,
     validate_apply_time,
     validate_cancel_time,
