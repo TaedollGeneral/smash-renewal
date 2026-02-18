@@ -67,7 +67,7 @@ def cancel():
     return jsonify({"message": "취소가 완료되었습니다."}), 200
 
 
-@application_bp.route('/status', methods=['GET'])
+@application_bp.route('/api/board-data', methods=['GET'])
 def get_status():
     """현황 조회 API — 현재 상태와 신청 목록 반환"""
     category = request.args.get('category')

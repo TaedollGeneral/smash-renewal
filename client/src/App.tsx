@@ -102,7 +102,7 @@ function App() {
   // 폴링: 5분에 한번 + soft refresh + 카운트다운 종료 시
   const fetchCategoryStates = useCallback(async () => {
     try {
-      const response = await fetch(`/api/category-states?semester=${semester}&week=${week}`);
+      const response = await fetch(`/api/category-states`);
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
@@ -111,7 +111,7 @@ function App() {
     } catch (error) {
       console.error('[상태/카운트다운] 갱신 실패:', error);
     }
-  }, [semester, week]);
+  }, []);
 
   // ─── 3. 게시판 현황 fetch (실제 서버 호출) ──────────────────────────────────
   // 폴링: 2초에 한번 + soft refresh
