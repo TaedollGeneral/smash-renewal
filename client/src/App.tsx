@@ -2,60 +2,20 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
-import type { DayType, BoardType, User, Capacity, CategoryState, StatusType } from '@/types';
+import type { DayType, BoardType, User, Capacity, CategoryState } from '@/types';
 
-// ─── 서버 API 엔드포인트 (실제 구현 시 참고) ────────────────────────────────
+// ─── 서버 API 엔드포인트 ────────────────────────────────────────────────────
 // GET /api/capacities?semester=&week=        → { 수: number, 금: number }
-//   폴링 주기: 5분, soft refresh
-//
-// GET /api/category-states?semester=&week=  → Record<DayType, Record<BoardType, {
-//                                               status: StatusType,
-//                                               statusText: string,
-//                                               deadlineTimestamp: number  ← 절대 시각(Unix ms)
-//                                             }>>
-//   폴링 주기: 5분, soft refresh, 카운트다운=0
-//
-// GET /api/board-data?semester=&week=        → 게시판 현황 (신청자 목록 등)
-//   폴링 주기: 2초, soft refresh
+// GET /api/category-states?semester=&week=   → Record<DayType, Record<BoardType, CategoryState>>
+// GET /api/board-data?semester=&week=        → 게시판 현황
 // ────────────────────────────────────────────────────────────────────────────
-
-/**
- * Mock 정원 (고정값) — 컴포넌트 외부에 정의하여 렌더마다 재생성되지 않도록 함
- * 실서버 연동 시: fetchCapacities() 내에서 API 응답으로 대체
- */
-const MOCK_CAPACITIES: Capacity = { 수: 12, 금: 14 };
-
-/**
- * 마감 타임스탬프로부터 CategoryState를 계산하는 헬퍼 (Mock 전용)
- * 실제 서버에서는 status/statusText를 함께 내려줌
- */
-function computeStateFromDeadline(deadlineTimestamp: number): CategoryState {
-  const remainingSeconds = Math.max(0, Math.floor((deadlineTimestamp - Date.now()) / 1000));
-
-  let status: StatusType;
-  let statusText: string;
-
-  if (remainingSeconds <= 0) {
-    status = 'waiting';
-    statusText = '종료';
-  } else if (remainingSeconds < 300) {
-    status = 'cancel-period';
-    statusText = '취소 마감까지';
-  } else if (remainingSeconds < 600) {
-    status = 'before-open';
-    statusText = '오픈까지';
-  } else {
-    status = 'open';
-    statusText = '신청 마감까지';
-  }
-
-  return { status, statusText, deadlineTimestamp };
-}
 
 function App() {
   const [currentDay, setCurrentDay] = useState<DayType>('수');
   const [expandedPanels, setExpandedPanels] = useState<Set<BoardType>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // 사용자 정보 상태 (로컬 스토리지 연동)
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('smash_user');
     if (saved) {
@@ -68,8 +28,8 @@ function App() {
     return null;
   });
 
+  // JWT 토큰 만료 체크
   useEffect(() => {
-    // JWT 토큰 만료 시 자동 로그아웃
     const token = localStorage.getItem('smash_token');
     if (token) {
       try {
@@ -89,112 +49,87 @@ function App() {
 
   /**
    * 정원 상태
-   * - 초기값: undefined → 서버 응답 전까지 AccordionPanel에 capacity가 표시되지 않음
-   * - fetchCapacities() 완료 후 실제 값으로 업데이트됨
+   * - 초기값: undefined (서버 응답 전까지 로딩 처리)
    */
   const [capacities, setCapacities] = useState<Capacity>({ 수: undefined, 금: undefined });
 
-  // Pull-to-refresh 상태
+  // Pull-to-refresh 상태 관리
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const touchStartY = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Mock 마감 타임스탬프: 최초 1회 생성 후 고정 (useRef)
-  const mockDeadlinesRef = useRef<Record<DayType, Record<BoardType, number>> | null>(null);
-  if (mockDeadlinesRef.current === null) {
-    const now = Date.now();
-    mockDeadlinesRef.current = {
-      '수': {
-        '운동':   now + 3600 * 1000,
-        '게스트': now + 2400 * 1000,
-        '레슨':   now + 1800 * 1000,
-        '잔여석': now + 5400 * 1000,
-      },
-      '금': {
-        '운동':   now + 180 * 1000,
-        '게스트': now + 600 * 1000,
-        '레슨':   now - 1000,
-        '잔여석': now + 7200 * 1000,
-      },
-    };
-  }
-  const mockDeadlines = mockDeadlinesRef.current;
-
-  // 카테고리별 상태 정보 - 초기값을 deadlineTimestamp 기준으로 동기 계산
-  const [categoryStates, setCategoryStates] = useState<Record<DayType, Record<BoardType, CategoryState>>>(() => {
-    const result = {} as Record<DayType, Record<BoardType, CategoryState>>;
-    (['수', '금'] as DayType[]).forEach(day => {
-      result[day] = {} as Record<BoardType, CategoryState>;
-      (['운동', '게스트', '레슨', '잔여석'] as BoardType[]).forEach(category => {
-        result[day][category] = computeStateFromDeadline(mockDeadlines[day][category]);
-      });
-    });
-    return result;
+  /**
+   * 카테고리별 상태 정보 (Status & Countdown)
+   * - 초기값: 로딩 중 상태 (waiting)
+   * - 서버에서 status, statusText, deadlineTimestamp를 모두 받아옴
+   */
+  const [categoryStates, setCategoryStates] = useState<Record<DayType, Record<BoardType, CategoryState>>>({
+    '수': {
+      '운동': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+      '게스트': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+      '레슨': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+      '잔여석': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+    },
+    '금': {
+      '운동': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+      '게스트': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+      '레슨': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 }, // 타입 호환용
+      '잔여석': { status: 'waiting', statusText: '로딩중...', deadlineTimestamp: 0 },
+    },
   });
 
   const [semester, setSemester] = useState('1');
   const [week, setWeek] = useState('3');
 
-  // ─── 1. 정원 fetch ──────────────────────────────────────────────────────────
+  // ─── 1. 정원 fetch (실제 서버 호출) ─────────────────────────────────────────
   // 폴링: 5분에 한번 + soft refresh
-  //
-  // useCallback deps: [semester, week]
-  //   → semester/week가 변경되면 새 함수 참조 생성
-  //   → 아래 useEffect([fetchCapacities])가 자동으로 재실행되어
-  //      이전 인터벌 해제 + 즉시 재호출 + 새 인터벌 등록
   const fetchCapacities = useCallback(async () => {
     try {
-      // TODO: const data = await fetch(`/api/capacities?semester=${semester}&week=${week}`).then(r => r.json());
-      // setCapacities(data);
-      setCapacities(MOCK_CAPACITIES);
-      console.log('[정원] 갱신:', new Date().toLocaleTimeString());
+      const response = await fetch(`/api/capacities?semester=${semester}&week=${week}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const data = await response.json();
+      setCapacities(data);
+      console.log('[정원] 갱신 성공:', new Date().toLocaleTimeString());
     } catch (error) {
-      console.error('[정원] 실패:', error);
+      console.error('[정원] 갱신 실패:', error);
     }
   }, [semester, week]);
 
-  // ─── 2. 카운트다운 fetch ────────────────────────────────────────────────────
-  // 폴링: 5분에 한번 + soft refresh + 카운트다운=0
-  //
-  // [실서버 연동 시]
-  //   fetch(`/api/category-states?semester=${semester}&week=${week}`)
-  //   서버는 deadlineTimestamp(절대 시각)를 포함한 CategoryState를 반환해야 함
+  // ─── 2. 카운트다운/상태 fetch (실제 서버 호출) ──────────────────────────────
+  // 폴링: 5분에 한번 + soft refresh + 카운트다운 종료 시
   const fetchCategoryStates = useCallback(async () => {
     try {
-      // TODO: const data = await fetch(`/api/category-states?semester=${semester}&week=${week}`).then(r => r.json());
-      // setCategoryStates(data);
-      const mockData = {} as Record<DayType, Record<BoardType, CategoryState>>;
-      (['수', '금'] as DayType[]).forEach(day => {
-        mockData[day] = {} as Record<BoardType, CategoryState>;
-        (['운동', '게스트', '레슨', '잔여석'] as BoardType[]).forEach(category => {
-          mockData[day][category] = computeStateFromDeadline(mockDeadlines[day][category]);
-        });
-      });
-      setCategoryStates(mockData);
-      console.log('[카운트다운] 갱신:', new Date().toLocaleTimeString());
-    } catch (error) {
-      console.error('[카운트다운] 실패:', error);
-    }
-  }, [semester, week, mockDeadlines]);
+      const response = await fetch(`/api/category-states?semester=${semester}&week=${week}`);
+      if (!response.ok) throw new Error('Network response was not ok');
 
-  // ─── 3. 게시판 현황 fetch ───────────────────────────────────────────────────
+      const data = await response.json();
+      setCategoryStates(data);
+      console.log('[상태/카운트다운] 갱신 성공:', new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error('[상태/카운트다운] 갱신 실패:', error);
+    }
+  }, [semester, week]);
+
+  // ─── 3. 게시판 현황 fetch (실제 서버 호출) ──────────────────────────────────
   // 폴링: 2초에 한번 + soft refresh
-  //
-  // [실서버 연동 시]
-  //   fetch(`/api/board-data?semester=${semester}&week=${week}`)
   const fetchBoardData = useCallback(async () => {
     try {
-      // TODO: const data = await fetch(`/api/board-data?semester=${semester}&week=${week}`).then(r => r.json());
-      // setBoardData(data);
-      console.log('[게시판 현황] 갱신:', new Date().toLocaleTimeString());
+      const response = await fetch(`/api/board-data?semester=${semester}&week=${week}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      // const data = await response.json();
+      // setBoardData(data); // TODO: BoardData 상태 생성 후 주석 해제하여 연결
+      console.log('[게시판 현황] 갱신 성공:', new Date().toLocaleTimeString());
     } catch (error) {
-      console.error('[게시판 현황] 실패:', error);
+      console.error('[게시판 현황] 갱신 실패:', error);
     }
   }, [semester, week]);
 
   // ─── 폴링 인터벌 설정 ───────────────────────────────────────────────────────
+
   // 정원: 5분마다
   useEffect(() => {
     fetchCapacities();
@@ -202,7 +137,7 @@ function App() {
     return () => clearInterval(id);
   }, [fetchCapacities]);
 
-  // 카운트다운: 5분마다
+  // 카운트다운/상태: 5분마다
   useEffect(() => {
     fetchCategoryStates();
     const id = setInterval(fetchCategoryStates, 5 * 60 * 1000);
@@ -216,13 +151,13 @@ function App() {
     return () => clearInterval(id);
   }, [fetchBoardData]);
 
-  // ─── 카운트다운 0 → 카테고리 상태 즉시 갱신 ────────────────────────────────
+  // ─── 카운트다운 0 도달 시 핸들러 ────────────────────────────────────────────
   const handleCountdownZero = (dayType: DayType, category: BoardType) => {
-    console.log(`[카운트다운] ${dayType}요일 ${category} 0 도달 → 즉시 갱신`);
+    console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신 요청`);
     fetchCategoryStates();
   };
 
-  // ─── Soft refresh: 세 가지 모두 즉시 갱신 ──────────────────────────────────
+  // ─── Soft refresh: 세 가지 데이터 모두 즉시 갱신 ────────────────────────────
   const handleSoftRefresh = async () => {
     setIsRefreshing(true);
     console.log('[Soft refresh] 시작');
@@ -278,8 +213,6 @@ function App() {
   const handleSemesterWeekChange = (newSemester: string, newWeek: string) => {
     setSemester(newSemester);
     setWeek(newWeek);
-    // semester/week 변경 → useCallback deps 변경 → 각 useEffect 자동 재실행
-    // (이전 인터벌 해제 + 즉시 재호출 + 새 인터벌 등록)
   };
 
   const accordionPanels: Record<DayType, BoardType[]> = {
@@ -355,8 +288,8 @@ function App() {
               {isRefreshing
                 ? '새로고침 중...'
                 : pullDistance > 60
-                ? '놓아서 새로고침'
-                : '아래로 당겨서 새로고침'}
+                  ? '놓아서 새로고침'
+                  : '아래로 당겨서 새로고침'}
             </span>
           </div>
         </div>
