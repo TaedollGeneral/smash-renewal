@@ -3,13 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { BoardTable } from './BoardTable';
 import type { BoardType, CategoryState } from '@/types';
 
-// 각 게시판 타입에 맞는 이모티콘
-const boardIcons: Record<BoardType, string> = {
-  '운동': '🏸',
-  '게스트': '👥',
-  '레슨': '🎓',
-  '잔여석': '🪑',
-};
 
 interface AccordionPanelProps {
   title: BoardType;
@@ -208,7 +201,6 @@ export function AccordionPanel({
               isExpanded ? 'rotate-180' : ''
             }`}
           />
-          <span className="text-base">{boardIcons[title]}</span>
           <span className="font-semibold text-sm text-white whitespace-nowrap">
             {title}{capacity !== undefined && `(${capacity})`}
           </span>
