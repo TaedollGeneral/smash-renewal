@@ -218,7 +218,7 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#EAEAEA]">
+    <div className="flex flex-col h-screen bg-[#1C5D99]">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -251,7 +251,7 @@ function App() {
             opacity: isPulling || isRefreshing ? 1 : 0,
           }}
         >
-          <div className="flex items-center gap-2 text-[#4F6D7A]">
+          <div className="flex items-center gap-2 text-white">
             <svg
               className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
               xmlns="http://www.w3.org/2000/svg"
