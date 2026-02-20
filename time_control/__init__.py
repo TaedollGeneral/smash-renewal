@@ -6,4 +6,4 @@
 #   board_store.py      — 인메모리 딕셔너리 저장소 + 더티 플래그 배치 백업
 #   rate_limiter.py     — 인메모리 슬라이딩 윈도우 Rate Limiter
 #   apply/              — 운동 신청 핵심 로직 (handle_apply)
-#   cancel/             — 취소 로직 (3단계 구현 예정)
+#   cancel/             — 운동 취소 핵심 로직 (handle_cancel)

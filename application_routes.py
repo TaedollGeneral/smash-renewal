@@ -3,13 +3,10 @@ from flask import Blueprint, request, jsonify
 
 from smash_db.auth import token_required
 from time_control.scheduler_logic import Category, get_current_status
-from time_control.time_handler import (
-    _now_kst,
-    validate_apply_time,
-    validate_cancel_time,
-)
+from time_control.time_handler import _now_kst
 from time_control.rate_limiter import rate_limit
 from time_control.apply import handle_apply
+from time_control.cancel import handle_cancel
 from time_control.board_store import get_board
 
 application_bp = Blueprint('application', __name__)
@@ -57,7 +54,18 @@ def apply():
 @token_required
 @rate_limit(max_requests=5, window_seconds=10)
 def cancel():
-    """운동 취소 API — OPEN 또는 CANCEL_ONLY 상태에서만 취소 가능"""
+    """운동 취소 API
+
+    데코레이터 실행 순서:
+      1) token_required — JWT 검증 + request.current_user 설정
+      2) rate_limit     — User ID 기반 요청 횟수 제한 (매크로/도배 방지)
+
+    이후 handle_cancel()이 다음을 순서대로 수행:
+      1) role 확인 → manager/user 분기
+      2) 시간 검증 (user만) + 본인 인가 검증
+      3) 동시성 제어 + 인메모리 조작 (board_store.remove_entry)
+      4) 응답 반환
+    """
     data = request.get_json() or {}
     category = data.get('category')
 
@@ -65,18 +73,8 @@ def cancel():
     if error:
         return jsonify({"error": error}), 400
 
-    # Guard Clause: time_handler에서 시간 규칙 검증
-    now = _now_kst()
-    time_error = validate_cancel_time(category, now)
-    if time_error:
-        return jsonify({"error": time_error}), 400
-
-    # TODO: 3단계에서 cancel 로직 구현
-    # user = request.current_user
-    # from time_control.board_store import remove_entry
-    # remove_entry(category, user['id'])
-
-    return jsonify({"message": "취소가 완료되었습니다."}), 200
+    result, status_code = handle_cancel(category)
+    return jsonify(result), status_code
 
 
 @application_bp.route('/api/board-data', methods=['GET'])
