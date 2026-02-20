@@ -29,6 +29,7 @@ export interface BoardEntry {
   name: string;
   type: string;        // "member" | "guest" 등
   timestamp: number;   // Unix seconds (float)
+  guest_name?: string; // 게스트/잔여석 신청 시 입력된 이름
 }
 
 export interface ScheduleState {

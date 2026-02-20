@@ -1,41 +1,13 @@
 import type { BoardType } from '@/types';
+import type { BoardEntry } from '@/hooks/useScheduleSystem';
+import { formatTimestamp } from '@/lib/utils';
 
 interface BoardTableProps {
   type: BoardType;
+  applications?: BoardEntry[];
 }
 
-// Mock data for each board type - 50명 이상의 데이터
-const names = ['홍길동', '김철수', '이영희', '박민수', '최지은', '정수진', '강민호', '윤서연', '임동현', '한지민',
-  '조은비', '배성훈', '송하늘', '신유진', '오준영', '양서현', '구민재', '권나연', '남태영', '문지훈'];
-
-const mockData = {
-  운동: Array.from({ length: 55 }, (_, i) => ({
-    no: i + 1,
-    name: names[i % names.length],
-    time: `${Math.floor(i / 10)} ${String(14 + Math.floor(i / 6) % 10).padStart(2, '0')}:${String((23 + i * 3) % 60).padStart(2, '0')}:${String((15 + i * 7) % 60).padStart(2, '0')}.${String((i * 13) % 100).padStart(2, '0')}`,
-  })),
-  게스트: Array.from({ length: 30 }, (_, i) => ({
-    no: i + 1,
-    applicant: names[i % names.length],
-    guest: names[(i + 5) % names.length],
-    time: `${Math.floor(i / 10)} ${String(14 + Math.floor(i / 6) % 10).padStart(2, '0')}:${String((23 + i * 3) % 60).padStart(2, '0')}:${String((15 + i * 7) % 60).padStart(2, '0')}.${String((i * 13) % 100).padStart(2, '0')}`,
-  })),
-  레슨: Array.from({ length: 20 }, (_, i) => ({
-    no: i + 1,
-    name: names[i % names.length],
-    lessonTime: `${18 + Math.floor(i / 10)}:00`,
-    time: `${Math.floor(i / 10)} ${String(14 + Math.floor(i / 6) % 10).padStart(2, '0')}:${String((23 + i * 3) % 60).padStart(2, '0')}:${String((15 + i * 7) % 60).padStart(2, '0')}.${String((i * 13) % 100).padStart(2, '0')}`,
-  })),
-  잔여석: Array.from({ length: 25 }, (_, i) => ({
-    no: i + 1,
-    applicant: names[i % names.length],
-    participants: names[(i + 10) % names.length],
-    time: `${Math.floor(i / 10)} ${String(14 + Math.floor(i / 6) % 10).padStart(2, '0')}:${String((23 + i * 3) % 60).padStart(2, '0')}:${String((15 + i * 7) % 60).padStart(2, '0')}.${String((i * 13) % 100).padStart(2, '0')}`,
-  })),
-};
-
-export function BoardTable({ type }: BoardTableProps) {
-  const data = mockData[type] || [];
+export function BoardTable({ type, applications = [] }: BoardTableProps) {
 
   const renderHeaders = () => {
     switch (type) {
@@ -77,41 +49,44 @@ export function BoardTable({ type }: BoardTableProps) {
     }
   };
 
+  // timestamp는 Unix seconds(float) → ms 변환 후 formatTimestamp 적용
+  const fmtTime = (entry: BoardEntry) => formatTimestamp(entry.timestamp * 1000);
+
   const renderRows = () => {
     switch (type) {
       case '운동':
-        return data.map((item: any, index: number) => (
-          <tr key={item.no} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{item.no}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{item.name}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{item.time}</td>
+        return applications.map((entry, index) => (
+          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
+            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
+            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
           </tr>
         ));
       case '게스트':
-        return data.map((item: any, index: number) => (
-          <tr key={item.no} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{item.no}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{item.applicant}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{item.guest}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{item.time}</td>
+        return applications.map((entry, index) => (
+          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
+            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
+            <td className="py-2 px-2 text-center text-xs text-white">{entry.guest_name ?? '-'}</td>
+            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
           </tr>
         ));
       case '레슨':
-        return data.map((item: any, index: number) => (
-          <tr key={item.no} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{item.no}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{item.name}</td>
-            <td className="py-2 px-1 text-center text-xs text-white">{item.lessonTime}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{item.time}</td>
+        return applications.map((entry, index) => (
+          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
+            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
+            <td className="py-2 px-1 text-center text-xs text-white">{entry.guest_name ?? '-'}</td>
+            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
           </tr>
         ));
       case '잔여석':
-        return data.map((item: any, index: number) => (
-          <tr key={item.no} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{item.no}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{item.applicant}</td>
-            <td className="py-2 px-1 text-center text-xs text-white">{item.participants}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{item.time}</td>
+        return applications.map((entry, index) => (
+          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
+            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
+            <td className="py-2 px-1 text-center text-xs text-white">{entry.guest_name ?? '-'}</td>
+            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
           </tr>
         ));
     }
@@ -123,7 +98,7 @@ export function BoardTable({ type }: BoardTableProps) {
         <tr>{renderHeaders()}</tr>
       </thead>
       <tbody>
-        {data.length > 0 ? (
+        {applications.length > 0 ? (
           renderRows()
         ) : (
           <tr>
