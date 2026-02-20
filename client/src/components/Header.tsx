@@ -38,20 +38,25 @@ export function Header({ currentDay, onDayChange, onMenuClick, user }: HeaderPro
   const { wed, fri } = getUpcomingWedFri();
 
   return (
-    <header className="bg-[#1C5D99] shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))] border-b border-[#2C6DB0]">
+    <header className="bg-[#1C5D99] shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))]">
       <div className="flex items-center justify-between">
         {/* Left: Menu Icon */}
         <button
           onClick={onMenuClick}
-          className="p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
+          className="p-2 -ml-3 hover:bg-white/20 rounded-lg transition-colors"
         >
           <Menu className="w-6 h-6 text-white" />
         </button>
 
         {/* Center: Title + Dates */}
-        <div className="flex-1 mx-4">
-          <h1 className="font-bold text-lg text-white">2026 SMASH</h1>
-          <p className="text-sm text-white/90">
+        <div className="flex-1 mx-1">
+          <h1
+            className="font-bold text-[16px] text-white"
+            style={{
+              textShadow: '0 0 8px rgba(0, 0, 0, 0.3)'
+            }}
+          >2026 SMASH</h1>
+          <p className="text-[11px] text-white">
             {formatDate(wed)} &middot; {formatDate(fri)}
           </p>
         </div>
@@ -85,6 +90,11 @@ export function Header({ currentDay, onDayChange, onMenuClick, user }: HeaderPro
             금
           </button>
         </div>
+      </div>
+      {/* --- 양 끝이 둥근 하단 구분선 (색상 및 두께 유지) --- */}
+      <div className="absolute bottom-0 left-0 right-0 px-4">
+        {/* h-[1px]로 두께 유지, bg-[#2C6DB0]로 색상 유지, rounded-full로 끝부분 처리 */}
+        <div className="h-[1px] w-full bg-[#2C6DB0] rounded-full" />
       </div>
     </header>
   );

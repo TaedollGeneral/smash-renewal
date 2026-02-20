@@ -251,7 +251,7 @@ export function Sidebar({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto h-[calc(100%-72px)] p-4 flex flex-col gap-6">
+        <div className="overflow-y-auto h-[calc(100%-72px)] pt-4 px-4 pb-10 flex flex-col gap-6">
           {/* 일반 섹션 */}
           <div>
             <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3 px-1">일반</h3>
@@ -308,7 +308,7 @@ export function Sidebar({
           {user && (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 p-3 text-white hover:text-white hover:bg-white/20 rounded-lg transition-colors border border-white/40 hover:border-white/60"
+              className="inline-flex items-center justify-center gap-2 p-3 text-white hover:text-white hover:bg-white/20 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="text-sm font-semibold">로그아웃</span>

@@ -215,7 +215,7 @@ function App() {
   const handleTouchEnd = () => {
     touchStartY.current = 0;
     // 트리거 임계값 90px로 상향 (기존 60px)
-    if (pullDistance > 90 && !isRefreshing) {
+    if (pullDistance > 70 && !isRefreshing) {
       handleSoftRefresh();
     } else {
       setIsPulling(false);
@@ -244,7 +244,35 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C5D99]">
+    <div className="flex flex-col h-screen bg-[#1C5D99] relative overflow-hidden">
+      {/* Background texture layer */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {/* Subtle noise pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'repeat',
+          }}
+        />
+
+        {/* Dot pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.8) 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+          }}
+        />
+
+        {/* Subtle gradient from top (darker below header) */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100px, transparent 200px)',
+          }}
+        />
+      </div>
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

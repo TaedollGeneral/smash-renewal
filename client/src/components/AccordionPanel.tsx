@@ -146,7 +146,7 @@ export function AccordionPanel({
   };
 
   return (
-    <div className="bg-[#FFFFFF] shadow-md rounded-xl overflow-hidden">
+    <div className="bg-[#FFFFFF] shadow-md rounded-sm overflow-hidden">
       {/* Participant Modal */}
       {showParticipantModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
@@ -265,7 +265,7 @@ export function AccordionPanel({
 
       {/* Accordion Content */}
       <div
-        className={`accordion-content overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? `${title === '운동' ? 'max-h-[560px]' : 'max-h-[500px]'} opacity-100` : 'max-h-0 opacity-0'
+        className={`accordion-content overflow-hidden transition-all duration-500 linear ${isExpanded ? `${title === '운동' ? 'max-h-[560px]' : 'max-h-[500px]'} opacity-100` : 'max-h-0 opacity-0'
           }`}
       >        <div className="pb-4">
           <BoardTable type={title} />
