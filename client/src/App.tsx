@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
+import { ApplicationPanel } from '@/components/ApplicationPanel';
 import { Sidebar } from '@/components/Sidebar';
 import type { DayType, BoardType, User, Capacity, CategoryState } from '@/types';
 
@@ -121,22 +122,8 @@ function App() {
     }
   }, []);
 
-  // ─── 3. 게시판 현황 fetch (실제 서버 호출) ──────────────────────────────────
-  // 폴링: 2초에 한번 + soft refresh
-  const fetchBoardData = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/board-data`);
-      if (!response.ok) throw new Error('Network response was not ok');
-
-      // const data = await response.json();
-      // setBoardData(data); // TODO: BoardData 상태 생성 후 주석 해제하여 연결
-      console.log('[게시판 현황] 갱신 성공:', new Date().toLocaleTimeString());
-    } catch (error) {
-      console.error('[게시판 현황] 갱신 실패:', error);
-    }
-  }, []);
-
   // ─── 폴링 인터벌 설정 ───────────────────────────────────────────────────────
+  // 게시판 현황 폴링은 각 AccordionPanel 내 useScheduleSystem 훅이 담당
 
   // 정원: 5분마다
   useEffect(() => {
@@ -152,13 +139,6 @@ function App() {
     return () => clearInterval(id);
   }, [fetchCategoryStates]);
 
-  // 게시판 현황: 2초마다
-  useEffect(() => {
-    fetchBoardData();
-    const id = setInterval(fetchBoardData, 2000);
-    return () => clearInterval(id);
-  }, [fetchBoardData]);
-
   // ─── 카운트다운 0 도달 시 핸들러 ────────────────────────────────────────────
   const handleCountdownZero = (dayType: DayType, category: BoardType) => {
     console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신 요청`);
@@ -173,7 +153,6 @@ function App() {
       await Promise.all([
         fetchCapacities(),
         fetchCategoryStates(),
-        fetchBoardData(),
       ]);
       console.log('[Soft refresh] 완료');
     } catch (error) {
@@ -331,7 +310,7 @@ function App() {
         </div>
 
         <div
-          className="flex flex-col gap-2 p-2"
+          className="flex flex-col gap-2 p-2 pb-20"
           style={{
             transform: `translateY(${isPulling || isRefreshing ? pullDistance : 0}px)`,
             transition: isPulling ? 'none' : 'transform 0.3s ease-out',
@@ -344,6 +323,7 @@ function App() {
               isExpanded={expandedPanels.has(panel)}
               onToggle={() => togglePanel(panel)}
               dayType={currentDay}
+              user={user}
               capacity={panel === '운동' ? capacities[currentDay] : undefined}
               categoryState={categoryStates[currentDay][panel]}
               onCountdownZero={() => handleCountdownZero(currentDay, panel)}
@@ -351,6 +331,13 @@ function App() {
           ))}
         </div>
       </div>
+
+      {/* ApplicationPanel: 하단 고정 신청/취소 바 */}
+      <ApplicationPanel
+        availablePanels={accordionPanels[currentDay]}
+        dayType={currentDay}
+        user={user}
+      />
     </div>
   );
 }

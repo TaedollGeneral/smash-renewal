@@ -2,14 +2,30 @@ import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { BoardTable } from './BoardTable';
 import type { CategoryState } from '@/types';
+import type { User } from '@/types';
+import { useScheduleSystem, Category } from '@/hooks/useScheduleSystem';
 
 type BoardType = '운동' | '잔여석' | '게스트' | '레슨';
+type DayType = '수' | '금';
+
+// ── (dayType, boardType) → Category 매핑 ─────────────────────
+
+const CATEGORY_MAP: Record<string, Category> = {
+  '수_운동':   Category.WED_REGULAR,
+  '수_게스트': Category.WED_GUEST,
+  '수_잔여석': Category.WED_LEFTOVER,
+  '수_레슨':   Category.WED_LESSON,
+  '금_운동':   Category.FRI_REGULAR,
+  '금_게스트': Category.FRI_GUEST,
+  '금_잔여석': Category.FRI_LEFTOVER,
+};
 
 interface AccordionPanelProps {
   title: BoardType;
   isExpanded: boolean;
   onToggle: () => void;
-  dayType: '수' | '금';
+  dayType: DayType;
+  user: User | null;
   capacity?: number; // 운동 정원 (서버 응답에서 수신)
   /**
    * 서버에서 받아온 카테고리 상태
@@ -23,12 +39,17 @@ export function AccordionPanel({
   title,
   isExpanded,
   onToggle,
-  dayType: _dayType,
+  dayType,
+  user,
   capacity,
   categoryState,
   onCountdownZero,
 }: AccordionPanelProps) {
   const { status, statusText, deadlineTimestamp } = categoryState;
+
+  // ── useScheduleSystem: 게시판 데이터 폴링 + apply/cancel ────
+  const category = CATEGORY_MAP[`${dayType}_${title}`] ?? Category.WED_REGULAR;
+  const { applications, apply, cancel } = useScheduleSystem(category);
 
   // 카운트다운 상태: deadlineTimestamp - Date.now() 로 직접 계산
   const [remainingMilliseconds, setRemainingMilliseconds] = useState(() =>
@@ -46,6 +67,8 @@ export function AccordionPanel({
   const [notification1Enabled, setNotification1Enabled] = useState(false);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
+  // 모달이 신청 모드인지 취소 모드인지 구분
+  const [isApplyMode, setIsApplyMode] = useState(true);
 
   // 상태에 따른 카운트다운 색상 결정
   const getCountdownColor = () => {
@@ -113,30 +136,63 @@ export function AccordionPanel({
     return () => clearInterval(interval);
   }, [deadlineTimestamp]); // onCountdownZero는 ref로 관리하므로 deps 불필요
 
-  const handleApply = (e: React.MouseEvent) => {
+  // ── 신청 버튼 핸들러 ─────────────────────────────────────────
+
+  const handleApply = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (title === '게스트' || title === '잔여석') {
+      // 게스트/잔여석: 이름 입력 모달 표시
+      setIsApplyMode(true);
       setShowParticipantModal(true);
     } else {
-      console.log(`${title} - 신청 실행`);
-      alert(`${title} 신청이 완료되었습니다.`);
+      // 운동/레슨: 바로 API 호출
+      const result = await apply();
+      alert(result.success ? '신청이 완료되었습니다.' : `신청 실패: ${result.error}`);
     }
   };
 
-  const handleParticipantSubmit = (e: React.FormEvent) => {
+  // ── 모달 제출 (게스트/잔여석 신청 또는 취소) ─────────────────
+
+  const handleParticipantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (participantName.trim()) {
-      console.log(`${title} - 신청 실행 (참여인원: ${participantName})`);
-      alert(`${title} 신청이 완료되었습니다.\n참여인원: ${participantName}`);
-      setParticipantName('');
-      setShowParticipantModal(false);
+    if (!participantName.trim()) return;
+
+    let result;
+    if (isApplyMode) {
+      // 게스트/잔여석 신청: guestName 전달
+      result = await apply({ guestName: participantName.trim() });
+    } else {
+      // 게스트/잔여석 취소: 신청 시 생성된 guest_user_id로 cancel
+      // 백엔드 형식: guest_{userId}_{sanitizedName}
+      const targetUserId = `guest_${user?.id ?? ''}_${participantName.trim()}`;
+      result = await cancel({ target_user_id: targetUserId });
     }
+
+    if (result.success) {
+      alert(isApplyMode
+        ? `${title} 신청이 완료되었습니다.`
+        : `${title} 취소가 완료되었습니다.`
+      );
+    } else {
+      alert(`${isApplyMode ? '신청' : '취소'} 실패: ${result.error}`);
+    }
+    setParticipantName('');
+    setShowParticipantModal(false);
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
+  // ── 취소 버튼 핸들러 ─────────────────────────────────────────
+
+  const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log(`${title} - 취소 실행`);
-    alert(`${title} 취소가 완료되었습니다.`);
+    if (title === '게스트' || title === '잔여석') {
+      // 게스트/잔여석: 취소할 이름 입력 모달 표시
+      setIsApplyMode(false);
+      setShowParticipantModal(true);
+    } else {
+      // 운동/레슨: 바로 API 호출
+      const result = await cancel();
+      alert(result.success ? '취소가 완료되었습니다.' : `취소 실패: ${result.error}`);
+    }
   };
 
   const handleNotification1Toggle = (e: React.MouseEvent) => {
@@ -151,11 +207,13 @@ export function AccordionPanel({
       {showParticipantModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">운동참여인원 입력</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              {isApplyMode ? '운동참여인원 입력' : '취소할 인원 입력'}
+            </h3>
             <form onSubmit={handleParticipantSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  참여인원 이름
+                  {isApplyMode ? '참여인원 이름' : '취소할 이름'}
                 </label>
                 <input
                   type="text"
@@ -268,7 +326,7 @@ export function AccordionPanel({
         className={`accordion-content overflow-hidden transition-all duration-500 linear ${isExpanded ? `${title === '운동' ? 'max-h-[560px]' : 'max-h-[500px]'} opacity-100` : 'max-h-0 opacity-0'
           }`}
       >        <div className="pb-4">
-          <BoardTable type={title} />
+          <BoardTable type={title} applications={applications} />
         </div>
       </div>
     </div>
