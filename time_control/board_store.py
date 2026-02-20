@@ -81,6 +81,37 @@ def add_entry(category: str, entry: dict) -> bool:
     return True
 
 
+def apply_entry(category: str, entry: dict) -> tuple[bool, str | None]:
+    """신청 항목을 원자적으로 추가한다 (중복 검사 + 추가 + 정렬).
+
+    단일 Lock 내에서 중복 검사 → append → 타임스탬프 정렬 → 더티 플래그
+    설정을 모두 수행하여 선착순 동시성을 보장한다.
+
+    Args:
+        category: Category enum 값
+        entry: {"user_id": str, "name": str, "type": str, "timestamp": float}
+
+    Returns:
+        (True, None)   — 추가 성공
+        (False, reason) — 실패 (중복 또는 유효하지 않은 카테고리)
+    """
+    global _is_board_changed
+    with _lock:
+        if category not in _board_data:
+            return False, "유효하지 않은 카테고리입니다."
+
+        # 중복 신청 검사
+        for existing in _board_data[category]:
+            if existing["user_id"] == entry["user_id"]:
+                return False, "이미 신청되어 있습니다."
+
+        _board_data[category].append(entry)
+        _board_data[category].sort(key=lambda x: x["timestamp"])
+        _is_board_changed = True
+
+    return True, None
+
+
 def remove_entry(category: str, user_id: str) -> bool:
     """카테고리에서 user_id에 해당하는 항목을 제거한다.
 
