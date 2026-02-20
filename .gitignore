@@ -18,3 +18,7 @@ client/dist/
 
 
 *.pem
+
+# 인메모리 게시판 백업 파일 (런타임 생성)
+board_backup.json
+board_backup.tmp

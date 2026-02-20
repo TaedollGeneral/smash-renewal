@@ -14,11 +14,22 @@ if not app.config['SECRET_KEY']:
 # 앞으로 기능이 추가될 때마다 아래에 register_blueprint를 추가하면 됩니다.
 app.register_blueprint(auth_bp)
 
-from time_control.time_handler import time_bp  # 시간 상태 폴링 API
+from time_control.time_handler import time_bp, KST  # 시간 상태 폴링 API
 app.register_blueprint(time_bp)
 
 from application_routes import application_bp  # 운동 신청/취소/현황 API
 app.register_blueprint(application_bp)
+
+# --- [인메모리 게시판 초기화] ---
+# 1) 이전 백업 파일이 있으면 인메모리에 복구
+# 2) 더티 플래그 기반 백그라운드 저장 스레드 시작
+# 3) 매주 토요일 00:00 KST 초기화 스케줄러 시작
+from time_control.board_store import load_from_backup, start_background_saver
+from time_control.scheduler_logic import start_reset_scheduler
+
+load_from_backup()
+start_background_saver()
+start_reset_scheduler(KST)
 
 if __name__ == '__main__':
     # 127.0.0.1로 설정하여 Nginx를 통해서만 접근 가능하도록 제한

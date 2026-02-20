@@ -153,3 +153,30 @@ def validate_cancel_time(category: str, now: datetime) -> str | None:
         Status.CLOSED:      "취소 기간이 종료되었습니다.",
     }
     return messages.get(status, "취소 가능한 시간이 아닙니다.")
+
+
+# ── 역할 2-b: Boolean 검증 헬퍼 ──────────────────────────────────────────────
+# apply/cancel 모듈에서 간결하게 사용할 수 있는 True/False 반환 함수
+
+def is_apply_allowed(category: str, now: datetime | None = None) -> bool:
+    """신청 가능한 시간(OPEN)이면 True를 반환한다.
+
+    Args:
+        category: Category enum 값 (예: "WED_REGULAR")
+        now: 검증 기준 시각. None이면 현재 KST 시각 사용.
+    """
+    if now is None:
+        now = _now_kst()
+    return validate_apply_time(category, now) is None
+
+
+def is_cancel_allowed(category: str, now: datetime | None = None) -> bool:
+    """취소 가능한 시간(OPEN 또는 CANCEL_ONLY)이면 True를 반환한다.
+
+    Args:
+        category: Category enum 값 (예: "WED_REGULAR")
+        now: 검증 기준 시각. None이면 현재 KST 시각 사용.
+    """
+    if now is None:
+        now = _now_kst()
+    return validate_cancel_time(category, now) is None

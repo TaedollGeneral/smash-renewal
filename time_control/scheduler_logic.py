@@ -1,6 +1,11 @@
-# scheduler_logic.py — 순수 시간 규칙 (외부 의존성 없음, datetime만 사용)
-from datetime import datetime, timedelta
+# scheduler_logic.py — 시간 규칙 + 주간 초기화 스케줄러
+#
+# 역할 1: 카테고리별 상태 전환 규칙 (순수 함수, datetime만 사용)
+# 역할 2: 매주 토요일 00:00 KST에 인메모리 데이터를 초기화하는 스케줄러
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+import threading
+import time as _time
 
 
 class Category(str, Enum):
@@ -115,3 +120,58 @@ def get_next_change(category: str, now: datetime) -> tuple[datetime, str]:
 
     # 이번 주 전환이 모두 지남(= CLOSED) → 다음 주 토요일 00:00
     return week_start + timedelta(days=7), Status.BEFORE_OPEN
+
+
+# ── 주간 초기화 스케줄러 ──────────────────────────────────────────────────────
+
+def _next_saturday_midnight(now: datetime) -> datetime:
+    """현재 시각 이후의 가장 가까운 토요일 00:00:00을 반환한다.
+
+    현재가 토요일 00:00:00 정각이면 7일 뒤 토요일을 반환한다.
+    (이미 초기화를 수행한 직후이므로 다음 주를 가리켜야 한다.)
+    """
+    days_until_saturday = (5 - now.weekday()) % 7
+    # 토요일인데 00:00:00 이후이면(정각 포함) 다음 주로
+    if days_until_saturday == 0:
+        days_until_saturday = 7
+
+    return (now + timedelta(days=days_until_saturday)).replace(
+        hour=0, minute=0, second=0, microsecond=0,
+    )
+
+
+def _reset_scheduler_worker(kst: timezone) -> None:
+    """매주 토요일 00:00 KST에 board_store.reset_all()을 호출한다.
+
+    다음 토요일 자정까지 sleep한 뒤 초기화를 수행하는 무한 루프.
+    board_store는 순환 import 방지를 위해 함수 내부에서 import한다.
+    """
+    from .board_store import reset_all
+
+    while True:
+        now = datetime.now(kst)
+        next_reset = _next_saturday_midnight(now)
+        sleep_seconds = (next_reset - now).total_seconds()
+
+        if sleep_seconds > 0:
+            _time.sleep(sleep_seconds)
+
+        reset_all()
+
+        # 동일 시각 재실행 방지 — 1초 대기 후 다음 루프 진입
+        _time.sleep(1)
+
+
+def start_reset_scheduler(kst: timezone) -> None:
+    """주간 초기화 스케줄러 데몬 스레드를 시작한다.
+
+    Args:
+        kst: KST 타임존 (timezone(timedelta(hours=9)))
+    """
+    t = threading.Thread(
+        target=_reset_scheduler_worker,
+        args=(kst,),
+        daemon=True,
+        name="weekly-reset",
+    )
+    t.start()
