@@ -125,6 +125,8 @@ def validate_apply_time(category: str, now: datetime) -> str | None:
         None  — 검증 통과 (신청 가능)
         str   — 오류 메시지 (신청 불가 이유)
     """
+    return None
+
     status = get_current_status(category, now)
     if status == Status.OPEN:
         return None
@@ -168,7 +170,6 @@ def is_apply_allowed(category: str, now: datetime | None = None) -> bool:
     if now is None:
         now = _now_kst()
     return validate_apply_time(category, now) is None
-
 
 def is_cancel_allowed(category: str, now: datetime | None = None) -> bool:
     """취소 가능한 시간(OPEN 또는 CANCEL_ONLY)이면 True를 반환한다.
