@@ -184,24 +184,37 @@
 
 html {
   font-size: var(--font-size);
+  overscroll-behavior: none;
+  /* 브라우저 네이티브 pull-to-refresh / 바운스 차단 */
+}
+
+body {
+  overscroll-behavior: none;
+  /* iOS Safari / Android Chrome 오버스크롤 차단 */
 }
 
 /* Custom scrollbar styling for board tables */
 .board-table-scroll {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 .board-table-scroll::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
 }
 
 /* Hide scrollbar for accordion content */
 .accordion-content {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 .accordion-content::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
 }

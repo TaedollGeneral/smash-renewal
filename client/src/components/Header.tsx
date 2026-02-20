@@ -38,20 +38,20 @@ export function Header({ currentDay, onDayChange, onMenuClick, user }: HeaderPro
   const { wed, fri } = getUpcomingWedFri();
 
   return (
-    <header className="bg-[#EAEAEA] shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))] border-b border-[#C8C8C8]">
+    <header className="bg-[#1C5D99] shadow-md px-4 py-3 z-40 pt-[max(12px,env(safe-area-inset-top))] border-b border-[#2C6DB0]">
       <div className="flex items-center justify-between">
         {/* Left: Menu Icon */}
         <button
           onClick={onMenuClick}
-          className="p-2 -ml-2 hover:bg-[#C0D6DB]/40 rounded-lg transition-colors"
+          className="p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
         >
-          <Menu className="w-6 h-6 text-[#4F6D7A]" />
+          <Menu className="w-6 h-6 text-white" />
         </button>
 
         {/* Center: Title + Dates */}
         <div className="flex-1 mx-4">
-          <h1 className="font-bold text-lg text-[#4F6D7A]">2026 SMASH</h1>
-          <p className="text-sm text-[#4F6D7A]">
+          <h1 className="font-bold text-lg text-white">2026 SMASH</h1>
+          <p className="text-sm text-white/90">
             {formatDate(wed)} &middot; {formatDate(fri)}
           </p>
         </div>
@@ -59,31 +59,28 @@ export function Header({ currentDay, onDayChange, onMenuClick, user }: HeaderPro
         {/* User Info (if logged in) */}
         {user && (
           <div className="flex flex-col items-end mr-3">
-            <span className="text-sm font-bold text-[#4F6D7A]">{user.name}</span>
-            <span className="text-xs text-[#4F6D7A]">{user.role}</span>
+            <span className="text-sm font-bold text-white">{user.name}</span>
+            <span className="text-xs text-white/90">{user.role}</span>
           </div>
         )}
 
         {/* Right: Day Switch */}
-        <div className="relative flex items-center bg-[#C0D6DB]/40 rounded-lg p-0.5">
+        <div className="relative flex items-center bg-white/20 rounded-lg p-0.5">
           <div
-            className={`absolute w-10 h-10 bg-[#C0D6DB] rounded-md shadow-md transition-transform duration-300 ease-out ${
-              currentDay === '수' ? 'translate-x-0' : 'translate-x-[42px]'
-            }`}
+            className={`absolute w-10 h-10 bg-white rounded-md shadow-md transition-transform duration-300 ease-out ${currentDay === '수' ? 'translate-x-0' : 'translate-x-[42px]'
+              }`}
           />
           <button
             onClick={() => onDayChange('수')}
-            className={`relative z-10 w-10 h-10 rounded-md text-sm font-bold transition-colors duration-300 ${
-              currentDay === '수' ? 'text-[#4F6D7A]' : 'text-[#4F6D7A]/60 hover:text-[#4F6D7A]'
-            }`}
+            className={`relative z-10 w-10 h-10 rounded-md text-sm font-bold transition-colors duration-300 ${currentDay === '수' ? 'text-black' : 'text-white/80 hover:text-white'
+              }`}
           >
             수
           </button>
           <button
             onClick={() => onDayChange('금')}
-            className={`relative z-10 w-10 h-10 rounded-md text-sm font-bold transition-colors duration-300 ${
-              currentDay === '금' ? 'text-[#4F6D7A]' : 'text-[#4F6D7A]/60 hover:text-[#4F6D7A]'
-            }`}
+            className={`relative z-10 w-10 h-10 rounded-md text-sm font-bold transition-colors duration-300 ${currentDay === '금' ? 'text-black' : 'text-white/80 hover:text-white'
+              }`}
           >
             금
           </button>

@@ -1,15 +1,9 @@
 import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { BoardTable } from './BoardTable';
-import type { BoardType, CategoryState } from '@/types';
+import type { CategoryState } from '@/types';
 
-// 각 게시판 타입에 맞는 이모티콘
-const boardIcons: Record<BoardType, string> = {
-  '운동': '🏸',
-  '게스트': '👥',
-  '레슨': '🎓',
-  '잔여석': '🪑',
-};
+type BoardType = '운동' | '잔여석' | '게스트' | '레슨';
 
 interface AccordionPanelProps {
   title: BoardType;
@@ -152,7 +146,7 @@ export function AccordionPanel({
   };
 
   return (
-    <div className="bg-[#222222] shadow-md rounded-xl overflow-hidden">
+    <div className="bg-[#FFFFFF] shadow-md rounded-xl overflow-hidden">
       {/* Participant Modal */}
       {showParticipantModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
@@ -197,90 +191,83 @@ export function AccordionPanel({
       )}
 
       {/* Accordion Header */}
-      <button
+      <div
         onClick={onToggle}
-        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-[#2e2e2e] transition-colors"
+        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-[#F5F5F5] transition-colors cursor-pointer"
       >
         {/* Left: Chevron + Icon + Title */}
         <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
           <ChevronDown
-            className={`w-4 h-4 text-gray-300 transition-transform duration-200 flex-shrink-0 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
+            className={`w-4 h-4 text-black transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-180' : ''
+              }`}
           />
-          <span className="text-base">{boardIcons[title]}</span>
-          <span className="font-semibold text-sm text-white whitespace-nowrap">
+          <span className="font-semibold text-sm text-black whitespace-nowrap">
             {title}{capacity !== undefined && `(${capacity})`}
           </span>
         </div>
 
         {/* Right: Notification + Countdown + Action Buttons */}
         <div className="flex items-center gap-1.5 ml-1">
-          {/* Notification Button */}
+          {/* Notification Buttons */}
           <div className="flex gap-0.5">
             <button onClick={handleNotification1Toggle} className="p-1 rounded-lg transition-colors relative">
               <Bell
-                className={`w-4 h-4 ${
-                  notification1Enabled ? 'text-[#C0D6DB] fill-[#C0D6DB]' : 'text-gray-500 fill-gray-700'
-                }`}
+                className={`w-4 h-4 ${notification1Enabled ? 'text-[#1C5D99] fill-[#1C5D99]' : 'text-gray-400 fill-gray-400'
+                  }`}
               />
               {!notification1Enabled && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-5 h-[1.5px] bg-gray-500 -rotate-45" />
+                  <div className="w-5 h-[1.5px] bg-gray-400 -rotate-45" />
                 </div>
               )}
             </button>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-7 bg-white/20" />
+          <div className="w-px h-7 bg-gray-300" />
 
           {/* Countdown */}
           <div className="flex flex-col items-end ml-1.5">
-            <span className="text-[8px] leading-tight text-gray-400">{statusText}</span>
+            <span className="text-[8px] leading-tight text-gray-500">{statusText}</span>
             <span className={`text-sm font-bold tabular-nums leading-tight ${getCountdownColor()}`}>
               {formatTime(remainingMilliseconds)}
             </span>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-7 bg-white/20" />
+          <div className="w-px h-7 bg-gray-300" />
 
           {/* Action Buttons */}
           <div className="flex gap-2">
             <button
               onClick={handleCancel}
               disabled={!isCancelEnabled}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${
-                isCancelEnabled
-                  ? 'bg-[#C0D6DB] text-[#4F6D7A] border-[#C0D6DB] hover:bg-[#A8C4CA] active:bg-[#90B2B8] cursor-pointer'
-                  : 'bg-[#C0D6DB]/20 text-gray-500 border-[#C0D6DB]/20 cursor-not-allowed opacity-40'
-              }`}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${isCancelEnabled
+                ? 'bg-[#EAEAEA] text-black border-[#EAEAEA] hover:bg-[#D5D5D5] active:bg-[#C0C0C0] cursor-pointer'
+                : 'bg-[#EAEAEA]/20 text-gray-500 border-[#EAEAEA]/20 cursor-not-allowed opacity-40'
+                }`}
             >
               취소
             </button>
             <button
               onClick={handleApply}
               disabled={!isApplyEnabled}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${
-                isApplyEnabled
-                  ? 'bg-[#C0D6DB] text-[#4F6D7A] border-[#C0D6DB] hover:bg-[#A8C4CA] active:bg-[#90B2B8] cursor-pointer'
-                  : 'bg-[#C0D6DB]/20 text-gray-500 border-[#C0D6DB]/20 cursor-not-allowed opacity-40'
-              }`}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${isApplyEnabled
+                ? 'bg-[#EAEAEA] text-black border-[#EAEAEA] hover:bg-[#D5D5D5] active:bg-[#C0C0C0] cursor-pointer'
+                : 'bg-[#EAEAEA]/20 text-gray-500 border-[#EAEAEA]/20 cursor-not-allowed opacity-40'
+                }`}
             >
               신청
             </button>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* Accordion Content */}
       <div
-        className={`accordion-content overflow-hidden transition-all duration-500 ease-in-out ${
-          isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="pb-4">
+        className={`accordion-content overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? `${title === '운동' ? 'max-h-[560px]' : 'max-h-[500px]'} opacity-100` : 'max-h-0 opacity-0'
+          }`}
+      >        <div className="pb-4">
           <BoardTable type={title} />
         </div>
       </div>

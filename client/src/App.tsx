@@ -55,6 +55,22 @@ function App() {
   const touchStartY = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // 브라우저 네이티브 오버스크롤 차단:
+  // React의 onTouchMove는 passive:true로 등록되어 preventDefault()가 동작하지 않음
+  // → native addEventListener로 passive:false 리스너 별도 등록
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const preventOverscroll = (e: TouchEvent) => {
+      // 컨테이너가 최상단이고 아래 방향 드래그일 때만 기본 동작 차단
+      if (el.scrollTop === 0 && e.touches[0].clientY > touchStartY.current) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('touchmove', preventOverscroll, { passive: false });
+    return () => el.removeEventListener('touchmove', preventOverscroll);
+  }, []);
+
   /**
    * 카테고리별 상태 정보 (Status & Countdown)
    * - 초기값: 로딩 중 상태 (waiting)
@@ -175,21 +191,31 @@ function App() {
   const handleTouchStart = (e: React.TouchEvent) => {
     const el = scrollContainerRef.current;
     if (!el || el.scrollTop > 0) return;
+    // 터치 시작점이 스크롤된 자식 요소 위에 있으면 pull 비활성화
+    let target = e.target as HTMLElement | null;
+    while (target && target !== el) {
+      if (target.scrollTop > 0) return;
+      target = target.parentElement;
+    }
     touchStartY.current = e.touches[0].clientY;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     const el = scrollContainerRef.current;
-    if (!el || el.scrollTop > 0 || isRefreshing) return;
+    if (!el || el.scrollTop > 0 || isRefreshing || touchStartY.current === 0) return;
     const distance = e.touches[0].clientY - touchStartY.current;
-    if (distance > 0) {
+    // 20px 데드존: 의도치 않은 미세한 터치 무시
+    if (distance > 20) {
       setIsPulling(true);
-      setPullDistance(Math.min(distance * 0.5, 120));
+      // 저항 계수 0.3으로 낮춤 (기존 0.5 → 더 많이 당겨야 같은 거리)
+      setPullDistance(Math.min((distance - 20) * 0.3, 120));
     }
   };
 
   const handleTouchEnd = () => {
-    if (pullDistance > 60 && !isRefreshing) {
+    touchStartY.current = 0;
+    // 트리거 임계값 90px로 상향 (기존 60px)
+    if (pullDistance > 90 && !isRefreshing) {
       handleSoftRefresh();
     } else {
       setIsPulling(false);
@@ -218,7 +244,7 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#EAEAEA]">
+    <div className="flex flex-col h-screen bg-[#1C5D99]">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -251,7 +277,7 @@ function App() {
             opacity: isPulling || isRefreshing ? 1 : 0,
           }}
         >
-          <div className="flex items-center gap-2 text-[#4F6D7A]">
+          <div className="flex items-center gap-2 text-white">
             <svg
               className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
               xmlns="http://www.w3.org/2000/svg"
