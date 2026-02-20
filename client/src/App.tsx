@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
-import { ApplicationPanel } from '@/components/ApplicationPanel';
 import { Sidebar } from '@/components/Sidebar';
 import type { DayType, BoardType, User, Capacity, CategoryState } from '@/types';
 
@@ -332,12 +331,6 @@ function App() {
         </div>
       </div>
 
-      {/* ApplicationPanel: 하단 고정 신청/취소 바 */}
-      <ApplicationPanel
-        availablePanels={accordionPanels[currentDay]}
-        dayType={currentDay}
-        user={user}
-      />
     </div>
   );
 }
