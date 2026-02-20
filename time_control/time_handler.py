@@ -125,16 +125,6 @@ def validate_apply_time(category: str, now: datetime) -> str | None:
         None  — 검증 통과 (신청 가능)
         str   — 오류 메시지 (신청 불가 이유)
     """
-        #테스트용 임시 우회
-
-    #테스트용 임시 우회
-
-    return None
-        #테스트용 임시 우회
-
-    #테스트용 임시 우회
-
-
     status = get_current_status(category, now)
     if status == Status.OPEN:
         return None

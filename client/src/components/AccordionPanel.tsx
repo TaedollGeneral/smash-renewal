@@ -73,7 +73,7 @@ export function AccordionPanel({
   // 상태에 따른 카운트다운 색상 결정
   const getCountdownColor = () => {
     switch (status) {
-      case 'before-open': return 'text-white';
+      case 'before-open': return 'text-blue-500';
       case 'open': return 'text-green-400';
       case 'cancel-period': return 'text-red-400';
       case 'waiting': return 'text-gray-400';
