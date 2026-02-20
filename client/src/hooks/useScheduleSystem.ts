@@ -1,5 +1,5 @@
-// useScheduleSystem.ts — scheduler_logic.py와 동일한 시간 규칙을 가진 프론트엔드 훅
-import { useState, useEffect, useCallback } from 'react';
+// useScheduleSystem.ts — 백엔드 API 폴링 기반 스케줄 훅
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // ── Constants (enum 대체 — erasableSyntaxOnly 호환) ──────
 
@@ -24,176 +24,187 @@ export type Status = typeof Status[keyof typeof Status];
 
 // ── Types ──────────────────────────────────────────────
 
-interface Transition {
-  time: number; // ms timestamp
-  status: Status;
+export interface BoardEntry {
+  user_id: string;
+  name: string;
+  type: string;        // "member" | "guest" 등
+  timestamp: number;   // Unix seconds (float)
+  guest_name?: string; // 게스트/잔여석 신청 시 입력된 이름
 }
 
 export interface ScheduleState {
   status: Status;
-  nextChangeText: string;
+  applications: BoardEntry[];
   isActive: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
-// ── KST 유틸리티 ───────────────────────────────────────
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-function getKSTNow(): Date {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-  return new Date(utcMs + KST_OFFSET_MS);
+interface ApplyOptions {
+  target_user_id?: string;
+  guestName?: string;
 }
 
-// ── 순수 로직 (scheduler_logic.py 미러) ────────────────
-
-function getWeekStart(now: Date): Date {
-  const daysSinceSaturday = (now.getDay() - 6 + 7) % 7;
-  const result = new Date(now);
-  result.setDate(result.getDate() - daysSinceSaturday);
-  result.setHours(0, 0, 0, 0);
-  return result;
+interface ApiResult {
+  success: boolean;
+  error?: string;
+  data?: Record<string, unknown>;
 }
 
-const HOUR = 60 * 60 * 1000;
-const MINUTE = 60 * 1000;
-const DAY = 24 * HOUR;
+// ── 백엔드 응답 → 프론트 Status 매핑 ─────────────────
 
-function getTransitions(category: Category, weekStart: Date): Transition[] {
-  const sat = weekStart.getTime();
-  const transitions: Transition[] = [
-    { time: sat, status: Status.BEFORE_OPEN },
-  ];
-
-  switch (category) {
-    case Category.WED_REGULAR:
-      transitions.push({ time: sat + 22 * HOUR, status: Status.OPEN });
-      transitions.push({ time: sat + DAY + 10 * HOUR, status: Status.CANCEL_ONLY });
-      transitions.push({ time: sat + 4 * DAY, status: Status.CLOSED });
-      break;
-
-    case Category.WED_GUEST:
-      transitions.push({ time: sat + 22 * HOUR + MINUTE, status: Status.OPEN });
-      transitions.push({ time: sat + 4 * DAY + 18 * HOUR, status: Status.CLOSED });
-      break;
-
-    case Category.WED_LEFTOVER:
-      transitions.push({ time: sat + DAY + 22 * HOUR + MINUTE, status: Status.OPEN });
-      transitions.push({ time: sat + 4 * DAY + 18 * HOUR, status: Status.CLOSED });
-      break;
-
-    case Category.WED_LESSON:
-      transitions.push({ time: sat + DAY + 22 * HOUR, status: Status.OPEN });
-      transitions.push({ time: sat + 4 * DAY + 18 * HOUR, status: Status.CLOSED });
-      break;
-
-    case Category.FRI_REGULAR:
-      transitions.push({ time: sat + 22 * HOUR, status: Status.OPEN });
-      transitions.push({ time: sat + DAY + 10 * HOUR, status: Status.CANCEL_ONLY });
-      transitions.push({ time: sat + 6 * DAY, status: Status.CLOSED });
-      break;
-
-    case Category.FRI_GUEST:
-      transitions.push({ time: sat + 22 * HOUR + MINUTE, status: Status.OPEN });
-      transitions.push({ time: sat + 6 * DAY + 17 * HOUR, status: Status.CLOSED });
-      break;
-
-    case Category.FRI_LEFTOVER:
-      transitions.push({ time: sat + DAY + 22 * HOUR + MINUTE, status: Status.OPEN });
-      transitions.push({ time: sat + 6 * DAY + 17 * HOUR, status: Status.CLOSED });
-      break;
-  }
-
-  return transitions;
-}
-
-function getCurrentStatus(category: Category, now: Date): Status {
-  const weekStart = getWeekStart(now);
-  const transitions = getTransitions(category, weekStart);
-  const nowMs = now.getTime();
-
-  let current: Status = Status.CLOSED;
-  for (const t of transitions) {
-    if (nowMs >= t.time) {
-      current = t.status;
-    } else {
-      break;
-    }
-  }
-  return current;
-}
-
-function getNextChange(category: Category, now: Date): { time: number; status: Status } {
-  const weekStart = getWeekStart(now);
-  const transitions = getTransitions(category, weekStart);
-  const nowMs = now.getTime();
-
-  for (const t of transitions) {
-    if (nowMs < t.time) {
-      return { time: t.time, status: t.status };
-    }
-  }
-
-  return {
-    time: weekStart.getTime() + 7 * DAY,
-    status: Status.BEFORE_OPEN,
-  };
-}
-
-// ── 포맷팅 ─────────────────────────────────────────────
-
-const STATUS_LABEL: Record<Status, string> = {
-  [Status.BEFORE_OPEN]: '오픈까지',
-  [Status.OPEN]: '마감까지',
-  [Status.CANCEL_ONLY]: '취소 마감까지',
-  [Status.CLOSED]: '오픈까지',
+const BACKEND_STATUS_MAP: Record<string, Status> = {
+  BEFORE_OPEN: Status.BEFORE_OPEN,
+  OPEN: Status.OPEN,
+  CANCEL_ONLY: Status.CANCEL_ONLY,
+  CLOSED: Status.CLOSED,
 };
 
-function formatTimeLeft(diffMs: number): string {
-  if (diffMs <= 0) return '00:00:00';
+function toFrontendStatus(raw: string): Status {
+  return BACKEND_STATUS_MAP[raw] ?? Status.CLOSED;
+}
 
-  const totalSeconds = Math.floor(diffMs / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+// ── API 헬퍼 ──────────────────────────────────────────
 
-  const hh = String(hours).padStart(2, '0');
-  const mm = String(minutes).padStart(2, '0');
-  const ss = String(seconds).padStart(2, '0');
-
-  return `${hh}:${mm}:${ss}`;
+async function fetchBoardData(category: Category): Promise<{
+  status: Status;
+  applications: BoardEntry[];
+}> {
+  const response = await fetch(`/api/board-data?category=${category}`);
+  if (!response.ok) {
+    throw new Error(`board-data 조회 실패: ${response.status}`);
+  }
+  const data = await response.json();
+  return {
+    status: toFrontendStatus(data.status),
+    applications: data.applications ?? [],
+  };
 }
 
 // ── Hook ───────────────────────────────────────────────
 
-export function useScheduleSystem(category: Category): ScheduleState {
-  const computeState = useCallback((): ScheduleState => {
-    const now = getKSTNow();
-    const status = getCurrentStatus(category, now);
-    const next = getNextChange(category, now);
+const POLL_INTERVAL = 2000; // 2초
 
-    const diffMs = next.time - now.getTime();
-    const timeLeft = formatTimeLeft(diffMs);
-    const label = STATUS_LABEL[status];
+export function useScheduleSystem(category: Category) {
+  const [state, setState] = useState<ScheduleState>({
+    status: Status.CLOSED,
+    applications: [],
+    isActive: false,
+    isLoading: true,
+    error: null,
+  });
 
-    return {
-      status,
-      nextChangeText: `${label} ${timeLeft} 남음`,
-      isActive: status === Status.OPEN || status === Status.CANCEL_ONLY,
-    };
+  // 언마운트 후 setState 호출 방지
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // ── 폴링 (GET /api/board-data) ──────────────────────
+  const poll = useCallback(async () => {
+    try {
+      const { status, applications } = await fetchBoardData(category);
+      if (!mountedRef.current) return;
+      setState({
+        status,
+        applications,
+        isActive: status === Status.OPEN || status === Status.CANCEL_ONLY,
+        isLoading: false,
+        error: null,
+      });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: err instanceof Error ? err.message : '알 수 없는 오류',
+      }));
+    }
   }, [category]);
 
-  const [state, setState] = useState<ScheduleState>(computeState);
-
   useEffect(() => {
-    const interval = setInterval(() => {
-      setState(computeState());
-    }, 1000);
+    // 마운트 즉시 1회 호출 + 2초 인터벌
+    poll();
+    const id = setInterval(poll, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [poll]);
 
-    setState(computeState());
+  // ── apply (POST /apply) ─────────────────────────────
+  const apply = useCallback(
+    async (options?: ApplyOptions): Promise<ApiResult> => {
+      try {
+        const body: Record<string, string> = { category };
+        if (options?.target_user_id) {
+          body.target_user_id = options.target_user_id;
+        }
+        if (options?.guestName) {
+          body.guest_name = options.guestName;
+        }
 
-    return () => clearInterval(interval);
-  }, [computeState]);
+        const response = await fetch('/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(body),
+        });
 
-  return state;
+        const data = await response.json();
+
+        if (!response.ok) {
+          return { success: false, error: data.error ?? '신청에 실패했습니다.', data };
+        }
+
+        // 성공 시 즉시 폴링하여 UI 갱신
+        await poll();
+        return { success: true, data };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : '네트워크 오류',
+        };
+      }
+    },
+    [category, poll],
+  );
+
+  // ── cancel (POST /cancel) ───────────────────────────
+  const cancel = useCallback(
+    async (options?: ApplyOptions): Promise<ApiResult> => {
+      try {
+        const body: Record<string, string> = { category };
+        if (options?.target_user_id) {
+          body.target_user_id = options.target_user_id;
+        }
+        if (options?.guestName) {
+          body.guest_name = options.guestName;
+        }
+
+        const response = await fetch('/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(body),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return { success: false, error: data.error ?? '취소에 실패했습니다.', data };
+        }
+
+        // 성공 시 즉시 폴링하여 UI 갱신
+        await poll();
+        return { success: true, data };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : '네트워크 오류',
+        };
+      }
+    },
+    [category, poll],
+  );
+
+  return { ...state, apply, cancel };
 }
