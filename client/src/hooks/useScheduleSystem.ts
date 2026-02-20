@@ -142,9 +142,13 @@ export function useScheduleSystem(category: Category) {
           body.guest_name = options.guestName;
         }
 
+        const token = localStorage.getItem('smash_token') ?? '';
         const response = await fetch('/apply', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
           credentials: 'same-origin',
           body: JSON.stringify(body),
         });
@@ -180,9 +184,13 @@ export function useScheduleSystem(category: Category) {
           body.guest_name = options.guestName;
         }
 
+        const token = localStorage.getItem('smash_token') ?? '';
         const response = await fetch('/cancel', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
           credentials: 'same-origin',
           body: JSON.stringify(body),
         });

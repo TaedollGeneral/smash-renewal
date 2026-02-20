@@ -8,8 +8,8 @@ interface AdminActionModalProps {
   dayType: '수' | '금';
   /** 어떤 버튼을 눌러 열었는지 — '신청'이면 추가, '취소'이면 삭제 */
   actionType: '신청' | '취소';
-  /** 확인 시 대상 ID를 전달하는 콜백 */
-  onSubmit: (targetUserId: string) => void;
+  /** 확인 시 대상 ID와 이름을 전달하는 콜백 */
+  onSubmit: (targetUserId: string, targetName: string) => void;
 }
 
 export function AdminActionModal({
@@ -21,10 +21,14 @@ export function AdminActionModal({
   onSubmit,
 }: AdminActionModalProps) {
   const [userId, setUserId] = useState('');
+  const [userName, setUserName] = useState('');
 
   // 열릴 때마다 인풋 초기화
   useEffect(() => {
-    if (isOpen) setUserId('');
+    if (isOpen) {
+      setUserId('');
+      setUserName('');
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -43,13 +47,19 @@ export function AdminActionModal({
       alert('투표자 ID를 입력해주세요.');
       return;
     }
-    onSubmit(userId.trim());
+    if (!userName.trim()) {
+      alert('투표자 이름을 입력해주세요.');
+      return;
+    }
+    onSubmit(userId.trim(), userName.trim());
     setUserId('');
+    setUserName('');
     onClose();
   };
 
   const handleClose = () => {
     setUserId('');
+    setUserName('');
     onClose();
   };
 
@@ -98,6 +108,20 @@ export function AdminActionModal({
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1C5D99] focus:border-transparent transition"
               placeholder={`${actionLabel}할 ID 입력`}
               autoFocus
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              투표자 이름
+            </label>
+            <input
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1C5D99] focus:border-transparent transition"
+              placeholder="이름 입력"
               required
             />
           </div>

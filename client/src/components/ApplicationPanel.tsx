@@ -30,16 +30,21 @@ function toCategoryKey(dayType: DayType, boardType: BoardType): Category {
 async function callApi(
   endpoint: '/apply' | '/cancel',
   category: Category,
-  options?: { target_user_id?: string; guest_name?: string },
+  options?: { target_user_id?: string; target_name?: string; guest_name?: string },
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const body: Record<string, string> = { category };
     if (options?.target_user_id) body.target_user_id = options.target_user_id;
+    if (options?.target_name) body.target_name = options.target_name;
     if (options?.guest_name) body.guest_name = options.guest_name;
 
+    const token = localStorage.getItem('smash_token') ?? '';
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
       credentials: 'same-origin',
       body: JSON.stringify(body),
     });
@@ -97,11 +102,12 @@ export function ApplicationPanel({ availablePanels, dayType, user }: Application
 
   // ── AdminActionModal 콜백: 대리 신청/취소 API 호출 ─────────
 
-  const handleAdminSubmit = async (targetUserId: string) => {
+  const handleAdminSubmit = async (targetUserId: string, targetName: string) => {
     const category = toCategoryKey(dayType, selectedBoard);
     const endpoint = action === '신청' ? '/apply' : '/cancel';
-    const options: { target_user_id: string; guest_name?: string } = {
+    const options: { target_user_id: string; target_name?: string; guest_name?: string } = {
       target_user_id: targetUserId,
+      target_name: targetName,
     };
     if (showParticipantsInput && participants.trim()) {
       options.guest_name = participants.trim();
