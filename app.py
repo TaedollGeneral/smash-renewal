@@ -20,10 +20,15 @@ app.register_blueprint(time_bp)
 from application_routes import application_bp  # 운동 신청/취소/현황 API
 app.register_blueprint(application_bp)
 
-# --- [인메모리 게시판 초기화] ---
-# 1) 이전 백업 파일이 있으면 인메모리에 복구
-# 2) 더티 플래그 기반 백그라운드 저장 스레드 시작
-# 3) 매주 토요일 00:00 KST 초기화 스케줄러 시작
+from admin.capacity.routes import capacity_bp  # 임원진 정원 확정 API
+app.register_blueprint(capacity_bp)
+
+# --- [인메모리 초기화] ---
+# 정원 캐시: DB → 메모리 적재 (서버 부팅 시 1회)
+from admin.capacity.store import init_cache as init_capacity_cache
+init_capacity_cache()
+
+# 게시판: 백업 복구 + 백그라운드 저장 + 주간 리셋 스케줄러
 from time_control.board_store import load_from_backup, start_background_saver
 from time_control.scheduler_logic import start_reset_scheduler
 
