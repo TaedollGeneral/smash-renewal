@@ -50,7 +50,7 @@ export function AccordionPanel({
 
   // ── useScheduleSystem: 게시판 데이터 폴링 + apply/cancel ────
   const category = CATEGORY_MAP[`${dayType}_${title}`] ?? Category.WED_REGULAR;
-  const { applications, apply, cancel } = useScheduleSystem(category);
+  const { applications, apply, cancel, adminApply, adminCancel } = useScheduleSystem(category);
 
   // 카운트다운 상태: deadlineTimestamp - Date.now() 로 직접 계산
   const [remainingMilliseconds, setRemainingMilliseconds] = useState(() =>
@@ -175,10 +175,8 @@ export function AccordionPanel({
       // 게스트/잔여석 신청: guestName 전달
       result = await apply({ guestName: participantName.trim() });
     } else {
-      // 게스트/잔여석 취소: 신청 시 생성된 guest_user_id로 cancel
-      // 백엔드 형식: guest_{userId}_{sanitizedName}
-      const targetUserId = `guest_${user?.id ?? ''}_${participantName.trim()}`;
-      result = await cancel({ target_user_id: targetUserId });
+      // 게스트/잔여석 취소: 토큰으로 취소 대상 식별은 백엔드 처리
+      result = await cancel();
     }
 
     if (result.success) {
@@ -197,12 +195,12 @@ export function AccordionPanel({
 
   const handleAdminSubmit = async (targetUserId: string, guestName?: string) => {
     if (adminActionType === '신청') {
-      const result = await apply({ target_user_id: targetUserId, guestName });
+      const result = await adminApply(targetUserId, guestName);
       alert(result.success
         ? `[관리자] ${targetUserId} 대리 신청이 완료되었습니다.`
         : `신청 실패: ${result.error}`);
     } else {
-      const result = await cancel({ target_user_id: targetUserId });
+      const result = await adminCancel(targetUserId);
       alert(result.success
         ? `[관리자] ${targetUserId} 대리 취소가 완료되었습니다.`
         : `취소 실패: ${result.error}`);

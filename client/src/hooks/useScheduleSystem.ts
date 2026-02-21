@@ -40,15 +40,26 @@ export interface ScheduleState {
   error: string | null;
 }
 
+/**
+ * 일반 신청 옵션.
+ * 게스트/잔여석 카테고리에서 본인 신청 시 게시판에 표시될 이름만 추가로 전달.
+ * target_user_id 는 관리자 대리 전용이므로 여기서 제거됨.
+ */
 interface ApplyOptions {
-  target_user_id?: string;
   guestName?: string;
 }
 
-interface ApiResult {
+export interface ApiResult {
   success: boolean;
   error?: string;
   data?: Record<string, unknown>;
+}
+
+// ── 공통 헬퍼: Authorization 헤더 ─────────────────────
+
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('smash_token') ?? '';
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 // ── 백엔드 응답 → 프론트 Status 매핑 ─────────────────
@@ -131,88 +142,124 @@ export function useScheduleSystem(category: Category) {
   }, [poll]);
 
   // ── apply (POST /apply) ─────────────────────────────
+  // 일반 회원 본인 신청 전용.
+  // Body: { category, guest_name? }  — target_user_id 는 관리자 전용 엔드포인트로 분리.
   const apply = useCallback(
     async (options?: ApplyOptions): Promise<ApiResult> => {
       try {
         const body: Record<string, string> = { category };
-        if (options?.target_user_id) {
-          body.target_user_id = options.target_user_id;
-        }
         if (options?.guestName) {
           body.guest_name = options.guestName;
         }
 
-        const token = localStorage.getItem('smash_token') ?? '';
         const response = await fetch('/apply', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           credentials: 'same-origin',
           body: JSON.stringify(body),
         });
 
         const data = await response.json();
-
         if (!response.ok) {
           return { success: false, error: data.error ?? '신청에 실패했습니다.', data };
         }
 
-        // 성공 시 즉시 폴링하여 UI 갱신
         await poll();
         return { success: true, data };
       } catch (err) {
-        return {
-          success: false,
-          error: err instanceof Error ? err.message : '네트워크 오류',
-        };
+        return { success: false, error: err instanceof Error ? err.message : '네트워크 오류' };
       }
     },
     [category, poll],
   );
 
   // ── cancel (POST /cancel) ───────────────────────────
+  // 일반 회원 본인 취소 전용.
+  // Body: { category }  — 취소 대상은 백엔드가 토큰으로 식별.
   const cancel = useCallback(
-    async (options?: ApplyOptions): Promise<ApiResult> => {
+    async (): Promise<ApiResult> => {
       try {
-        const body: Record<string, string> = { category };
-        if (options?.target_user_id) {
-          body.target_user_id = options.target_user_id;
-        }
-        if (options?.guestName) {
-          body.guest_name = options.guestName;
-        }
-
-        const token = localStorage.getItem('smash_token') ?? '';
         const response = await fetch('/cancel', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           credentials: 'same-origin',
-          body: JSON.stringify(body),
+          body: JSON.stringify({ category }),
         });
 
         const data = await response.json();
-
         if (!response.ok) {
           return { success: false, error: data.error ?? '취소에 실패했습니다.', data };
         }
 
-        // 성공 시 즉시 폴링하여 UI 갱신
         await poll();
         return { success: true, data };
       } catch (err) {
-        return {
-          success: false,
-          error: err instanceof Error ? err.message : '네트워크 오류',
-        };
+        return { success: false, error: err instanceof Error ? err.message : '네트워크 오류' };
       }
     },
     [category, poll],
   );
 
-  return { ...state, apply, cancel };
+  // ── adminApply (POST /admin/apply) ──────────────────
+  // 관리자 대리 신청 전용.
+  // Body: { category, target_user_id, target_guest_name? }
+  //   - target_guest_name 은 게스트/잔여석 신청 시 두 번째 인풋에서 받은 값만 포함.
+  const adminApply = useCallback(
+    async (targetUserId: string, targetGuestName?: string): Promise<ApiResult> => {
+      try {
+        const body: Record<string, string> = { category, target_user_id: targetUserId };
+        if (targetGuestName) {
+          body.target_guest_name = targetGuestName;
+        }
+
+        const response = await fetch('/admin/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          credentials: 'same-origin',
+          body: JSON.stringify(body),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          return { success: false, error: data.error ?? '대리 신청에 실패했습니다.', data };
+        }
+
+        await poll();
+        return { success: true, data };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : '네트워크 오류' };
+      }
+    },
+    [category, poll],
+  );
+
+  // ── adminCancel (POST /admin/cancel) ────────────────
+  // 관리자 대리 취소 전용.
+  // Body: { category, target_user_id }
+  //   - 이름 조회는 백엔드 DB에서 처리하므로 프론트엔드는 ID만 전달.
+  const adminCancel = useCallback(
+    async (targetUserId: string): Promise<ApiResult> => {
+      try {
+        const response = await fetch('/admin/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          credentials: 'same-origin',
+          body: JSON.stringify({ category, target_user_id: targetUserId }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          return { success: false, error: data.error ?? '대리 취소에 실패했습니다.', data };
+        }
+
+        await poll();
+        return { success: true, data };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : '네트워크 오류' };
+      }
+    },
+    [category, poll],
+  );
+
+  return { ...state, apply, cancel, adminApply, adminCancel };
 }
