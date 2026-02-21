@@ -226,9 +226,27 @@ function App() {
     }
   };
 
-  const handleCapacitiesChange = (newCapacities: Capacity) => {
+  const handleCapacitiesChange = async (newCapacities: Capacity) => {
     setCapacities(newCapacities);
-    // TODO: 백엔드 API 호출 (임원진 정원 확정)
+    try {
+      const token = localStorage.getItem('smash_token') ?? '';
+      const response = await fetch('/api/admin/capacity', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(newCapacities),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error ?? '정원 확정에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[정원 확정] API 호출 실패:', error);
+      alert(error instanceof Error ? error.message : '정원 확정에 실패했습니다.');
+      fetchCapacities(); // 서버 상태로 되돌리기
+    }
   };
 
   const accordionPanels: Record<DayType, BoardType[]> = {
