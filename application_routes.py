@@ -26,7 +26,7 @@ def _validate_category(category: str | None) -> str | None:
 
 # ── 일반 신청/취소 (본인 전용) ────────────────────────────────────────────────
 
-@application_bp.route('/apply', methods=['POST'])
+@application_bp.route('/api/apply', methods=['POST'])
 @token_required
 @rate_limit(max_requests=5, window_seconds=10)
 def apply():
@@ -50,7 +50,7 @@ def apply():
     return jsonify(result), status_code
 
 
-@application_bp.route('/cancel', methods=['POST'])
+@application_bp.route('/api/cancel', methods=['POST'])
 @token_required
 @rate_limit(max_requests=5, window_seconds=10)
 def cancel():
@@ -76,7 +76,7 @@ def cancel():
 
 # ── 매니저 대리 신청/취소 ──────────────────────────────────────────────────────
 
-@application_bp.route('/admin/apply', methods=['POST'])
+@application_bp.route('/api/admin/apply', methods=['POST'])
 @token_required
 @rate_limit(max_requests=5, window_seconds=10)
 def admin_apply():
@@ -99,7 +99,7 @@ def admin_apply():
     return jsonify(result), status_code
 
 
-@application_bp.route('/admin/cancel', methods=['POST'])
+@application_bp.route('/api/admin/cancel', methods=['POST'])
 @token_required
 @rate_limit(max_requests=5, window_seconds=10)
 def admin_cancel():

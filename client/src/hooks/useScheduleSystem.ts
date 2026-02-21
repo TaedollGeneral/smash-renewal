@@ -152,7 +152,7 @@ export function useScheduleSystem(category: Category) {
           body.guest_name = options.guestName;
         }
 
-        const response = await fetch('/apply', {
+        const response = await fetch('/api/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           credentials: 'same-origin',
@@ -179,7 +179,7 @@ export function useScheduleSystem(category: Category) {
   const cancel = useCallback(
     async (): Promise<ApiResult> => {
       try {
-        const response = await fetch('/cancel', {
+        const response = await fetch('/api/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           credentials: 'same-origin',
@@ -212,7 +212,7 @@ export function useScheduleSystem(category: Category) {
           body.target_guest_name = targetGuestName;
         }
 
-        const response = await fetch('/admin/apply', {
+        const response = await fetch('/api/admin/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           credentials: 'same-origin',
@@ -240,7 +240,7 @@ export function useScheduleSystem(category: Category) {
   const adminCancel = useCallback(
     async (targetUserId: string): Promise<ApiResult> => {
       try {
-        const response = await fetch('/admin/cancel', {
+        const response = await fetch('/api/admin/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           credentials: 'same-origin',
