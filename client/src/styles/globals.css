@@ -185,12 +185,10 @@
 html {
   font-size: var(--font-size);
   overscroll-behavior: none;
-  /* 브라우저 네이티브 pull-to-refresh / 바운스 차단 */
 }
 
 body {
   overscroll-behavior: none;
-  /* iOS Safari / Android Chrome 오버스크롤 차단 */
 }
 
 /* Custom scrollbar styling for board tables */
@@ -199,6 +197,7 @@ body {
   /* Firefox */
   -ms-overflow-style: none;
   /* IE and Edge */
+  overscroll-behavior-y: contain;
 }
 
 .board-table-scroll::-webkit-scrollbar {

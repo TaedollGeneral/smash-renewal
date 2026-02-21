@@ -45,7 +45,7 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
-@auth_bp.route('api/login', methods=['POST'])
+@auth_bp.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
     if not data:

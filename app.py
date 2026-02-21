@@ -6,7 +6,7 @@ from smash_db.auth import auth_bp  # smash_db 폴더의 인증 로직 가져오�
 app = Flask(__name__)
 
 # [보안] 시크릿 키를 환경변수에서 읽음 (미설정 시 서버 시작 차단)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('JWT_SECRET')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
 

@@ -167,14 +167,6 @@ function App() {
 
   // Pull-to-refresh 터치 핸들러
   const handleTouchStart = (e: React.TouchEvent) => {
-    const el = scrollContainerRef.current;
-    if (!el || el.scrollTop > 0) return;
-    // 터치 시작점이 스크롤된 자식 요소 위에 있으면 pull 비활성화
-    let target = e.target as HTMLElement | null;
-    while (target && target !== el) {
-      if (target.scrollTop > 0) return;
-      target = target.parentElement;
-    }
     touchStartY.current = e.touches[0].clientY;
   };
 
