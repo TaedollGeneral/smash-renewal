@@ -1,15 +1,23 @@
-# cancel/ — 운동 취소 핵심 로직
+# cancel/ — 운동 취소 핵심 로직 (일반 회원 본인 취소 전용)
 #
 # 요청 처리 순서 (반드시 이 순서를 지켜야 한다):
-#   1. JWT 토큰 검증 + Role 확인 (token_required 데코레이터)
-#   2. 권한별 분기 (Manager: 시간 검증 건너뜀, User: 시간 검증 수행 + 본인 인가)
-#   3. 동시성 제어: board_store.remove_entry() 원자적 조작
-#   4. 응답 반환
+#   1. 토큰에서 사용자 정보 추출 (token_required 데코레이터가 보장)
+#   2. 시간 검증 — 항상 수행, 바이패스(Bypass) 없음
+#   3. 취소 대상 user_id 결정
+#      - 일반 카테고리: 토큰의 user_id를 직접 사용
+#      - 게스트 카테고리: "guest_{user_id}_*" prefix 탐색으로 본인 항목 확인
+#   4. 동시성 제어: board_store.remove_entry() 원자적 조작
+#   5. 응답 반환
+#
+# [분리 원칙]
+#   매니저 대리 취소는 /admin/cancel 엔드포인트(time_control/admin/)가 전담한다.
+#   이 모듈은 오직 "로그인한 본인" 취소만 처리하며, role 분기가 존재하지 않는다.
 
 from flask import request
 
-from ..board_store import remove_entry
+from ..board_store import get_board, remove_entry
 from ..time_handler import validate_cancel_time, _now_kst
+
 
 # ── 게스트 카테고리 판별 ─────────────────────────────────────────────────────
 
@@ -23,9 +31,9 @@ def _is_guest_category(category: str) -> bool:
 # ── 핵심 로직 ────────────────────────────────────────────────────────────────
 
 def handle_cancel(category: str) -> tuple[dict, int]:
-    """운동 취소 요청을 처리한다.
+    """일반 회원 본인 취소 요청을 처리한다.
 
-    이 함수는 application_routes.py의 /cancel 엔드포인트에서 호출된다.
+    /cancel 엔드포인트에서 호출된다.
     호출 전에 다음이 보장되어야 한다:
       - category는 유효한 Category enum 값
       - request.current_user가 설정됨 (token_required 통과)
@@ -38,51 +46,38 @@ def handle_cancel(category: str) -> tuple[dict, int]:
     """
     # ── Step 1: 토큰 정보 추출 ────────────────────────────────────────────────
     user = request.current_user  # token_required가 보장
-    role = user["role"]
     user_id = user["id"]
 
-    data = request.get_json() or {}
+    # ── Step 2: 시간 검증 (바이패스 없음) ─────────────────────────────────────
+    now = _now_kst()
+    time_error = validate_cancel_time(category, now)
+    if time_error:
+        return {"error": time_error}, 400
 
-    # ── Step 2: 권한별 분기 ───────────────────────────────────────────────────
-    if role == "manager":
-        # Manager: 시간 검증 건너뜀 (Bypass)
-        target_user_id = data.get("target_user_id")
-        if not target_user_id:
-            return {"error": "취소 대상 target_user_id가 필요합니다."}, 400
-
-        cancel_user_id = target_user_id
-
+    # ── Step 3: 취소 대상 user_id 결정 ───────────────────────────────────────
+    if _is_guest_category(category):
+        # 게스트 취소: 본인이 등록한 게스트 항목을 prefix 탐색으로 식별.
+        # 프론트엔드는 category만 전송하므로, "guest_{본인ID}_*" 형식으로
+        # 인메모리 보드를 스캔하여 대상 항목을 찾는다.
+        # 보안: prefix에 자신의 user_id가 포함되어 있으므로 타인 항목 접근 불가.
+        prefix = f"guest_{user_id}_"
+        entries = get_board(category)  # 얕은 복사본(snapshot)
+        cancel_user_id = next(
+            (e["user_id"] for e in entries if e["user_id"].startswith(prefix)),
+            None,
+        )
+        if cancel_user_id is None:
+            return {"error": "취소할 게스트 신청 내역이 없습니다."}, 404
     else:
-        # 일반 회원/게스트: 시간 검증 수행
-        now = _now_kst()
-        time_error = validate_cancel_time(category, now)
-        if time_error:
-            return {"error": time_error}, 400
+        # 일반 회원 본인 취소: 토큰의 user_id가 곧 취소 대상
+        cancel_user_id = user_id
 
-        if _is_guest_category(category):
-            # 게스트 취소: body에서 target_user_id를 받되,
-            # 반드시 본인이 등록한 게스트인지 인가 검증
-            target_user_id = data.get("target_user_id", "").strip()
-            if not target_user_id:
-                return {"error": "취소할 게스트의 target_user_id가 필요합니다."}, 400
-
-            # 핵심 보안: 게스트 ID는 "guest_{등록자ID}_{이름}" 형식
-            # 본인 토큰의 user_id가 접두사에 포함되어야 한다
-            expected_prefix = f"guest_{user_id}_"
-            if not target_user_id.startswith(expected_prefix):
-                return {"error": "본인이 등록한 게스트만 취소할 수 있습니다."}, 403
-
-            cancel_user_id = target_user_id
-        else:
-            # 일반 회원 본인 취소: 토큰의 user_id를 취소 대상으로 사용
-            cancel_user_id = user_id
-
-    # ── Step 3: 동시성 제어 + 인메모리 조작 ───────────────────────────────────
+    # ── Step 4: 동시성 제어 + 인메모리 조작 ───────────────────────────────────
     # board_store.remove_entry()가 단일 Lock 내에서
     # 대상 검색 → pop → 더티 플래그 설정을 수행
     success = remove_entry(category, cancel_user_id)
     if not success:
         return {"error": "취소할 신청 내역이 존재하지 않습니다."}, 404
 
-    # ── Step 4: 응답 반환 ─────────────────────────────────────────────────────
+    # ── Step 5: 응답 반환 ─────────────────────────────────────────────────────
     return {"message": "취소가 완료되었습니다."}, 200
