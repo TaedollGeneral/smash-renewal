@@ -108,11 +108,12 @@ def get_capacities():
     """운동 정원을 반환한다.
 
     Response (JSON):
-        { "수": number, "금": number }
+        { "수": number | null, "금": number | null }
 
-    TODO: DB에서 임원진이 설정한 정원을 조회하도록 교체.
+    인메모리 캐시에서 즉시 반환 (DB I/O 없음).
     """
-    return jsonify({"수": 12, "금": 14}), 200
+    from admin.capacity.store import get_capacities as _get
+    return jsonify(_get()), 200
 
 
 # ── 역할 2: Command Validation — Guard Clause ──────────────────────────────────
