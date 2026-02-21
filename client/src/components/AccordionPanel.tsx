@@ -1,6 +1,7 @@
 import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { BoardTable } from './BoardTable';
+import { AdminActionModal } from './AdminActionModal';
 import type { CategoryState } from '@/types';
 import type { User } from '@/types';
 import { useScheduleSystem, Category } from '@/hooks/useScheduleSystem';
@@ -49,7 +50,7 @@ export function AccordionPanel({
 
   // ── useScheduleSystem: 게시판 데이터 폴링 + apply/cancel ────
   const category = CATEGORY_MAP[`${dayType}_${title}`] ?? Category.WED_REGULAR;
-  const { applications, apply, cancel } = useScheduleSystem(category);
+  const { applications, apply, cancel, adminApply, adminCancel } = useScheduleSystem(category);
 
   // 카운트다운 상태: deadlineTimestamp - Date.now() 로 직접 계산
   const [remainingMilliseconds, setRemainingMilliseconds] = useState(() =>
@@ -69,6 +70,12 @@ export function AccordionPanel({
   const [participantName, setParticipantName] = useState('');
   // 모달이 신청 모드인지 취소 모드인지 구분
   const [isApplyMode, setIsApplyMode] = useState(true);
+
+  // 관리자 대리 신청/취소 모달
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminActionType, setAdminActionType] = useState<'신청' | '취소'>('신청');
+
+  const isManager = user?.role === 'manager';
 
   // 상태에 따른 카운트다운 색상 결정
   const getCountdownColor = () => {
@@ -140,6 +147,12 @@ export function AccordionPanel({
 
   const handleApply = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    // 매니저: 대리 신청 모달 열기
+    if (isManager) {
+      setAdminActionType('신청');
+      setShowAdminModal(true);
+      return;
+    }
     if (title === '게스트' || title === '잔여석') {
       // 게스트/잔여석: 이름 입력 모달 표시
       setIsApplyMode(true);
@@ -162,10 +175,8 @@ export function AccordionPanel({
       // 게스트/잔여석 신청: guestName 전달
       result = await apply({ guestName: participantName.trim() });
     } else {
-      // 게스트/잔여석 취소: 신청 시 생성된 guest_user_id로 cancel
-      // 백엔드 형식: guest_{userId}_{sanitizedName}
-      const targetUserId = `guest_${user?.id ?? ''}_${participantName.trim()}`;
-      result = await cancel({ target_user_id: targetUserId });
+      // 게스트/잔여석 취소: 토큰으로 취소 대상 식별은 백엔드 처리
+      result = await cancel();
     }
 
     if (result.success) {
@@ -180,10 +191,32 @@ export function AccordionPanel({
     setShowParticipantModal(false);
   };
 
+  // ── 관리자 대리 신청/취소 콜백 ──────────────────────────────
+
+  const handleAdminSubmit = async (targetUserId: string, guestName?: string) => {
+    if (adminActionType === '신청') {
+      const result = await adminApply(targetUserId, guestName);
+      alert(result.success
+        ? `[관리자] ${targetUserId} 대리 신청이 완료되었습니다.`
+        : `신청 실패: ${result.error}`);
+    } else {
+      const result = await adminCancel(targetUserId);
+      alert(result.success
+        ? `[관리자] ${targetUserId} 대리 취소가 완료되었습니다.`
+        : `취소 실패: ${result.error}`);
+    }
+  };
+
   // ── 취소 버튼 핸들러 ─────────────────────────────────────────
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    // 매니저: 대리 취소 모달 열기
+    if (isManager) {
+      setAdminActionType('취소');
+      setShowAdminModal(true);
+      return;
+    }
     if (title === '게스트' || title === '잔여석') {
       // 게스트/잔여석: 취소할 이름 입력 모달 표시
       setIsApplyMode(false);
@@ -203,6 +236,18 @@ export function AccordionPanel({
 
   return (
     <div className="bg-[#FFFFFF] shadow-md rounded-sm overflow-hidden">
+      {/* 관리자 대리 신청/취소 모달 — role === 'manager'일 때만 렌더링 */}
+      {isManager && (
+        <AdminActionModal
+          isOpen={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+          category={title}
+          dayType={dayType}
+          actionType={adminActionType}
+          onSubmit={handleAdminSubmit}
+        />
+      )}
+
       {/* Participant Modal */}
       {showParticipantModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
