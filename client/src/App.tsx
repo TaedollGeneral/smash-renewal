@@ -62,13 +62,46 @@ function App() {
     const el = scrollContainerRef.current;
     if (!el) return;
     const preventOverscroll = (e: TouchEvent) => {
-      // 컨테이너가 최상단이고 아래 방향 드래그일 때만 기본 동작 차단
-      if (el.scrollTop === 0 && e.touches[0].clientY > touchStartY.current) {
+      if (touchStartY.current === 0) return;
+      const touchY = e.touches[0].clientY;
+      const movingDown = touchY > touchStartY.current; // 손가락 아래로 = 위쪽 오버스크롤
+      const movingUp = touchY < touchStartY.current;   // 손가락 위로 = 아래쪽 오버스크롤
+
+      // 중첩 스크롤 영역(board 테이블 등)이 아직 스크롤 가능하면 허용
+      const target = e.target as HTMLElement;
+      const scrollableChild = target.closest('.board-table-scroll') as HTMLElement | null;
+      if (scrollableChild) {
+        const childAtTop = scrollableChild.scrollTop <= 0;
+        const childAtBottom = scrollableChild.scrollTop + scrollableChild.clientHeight >= scrollableChild.scrollHeight - 1;
+        // board 내부에서 아직 스크롤할 수 있으면 기본 동작 허용
+        if (movingDown && !childAtTop) return;
+        if (movingUp && !childAtBottom) return;
+      }
+
+      // 메인 스크롤 컨테이너 경계에서 오버스크롤 차단
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      if ((atTop && movingDown) || (atBottom && movingUp)) {
         e.preventDefault();
       }
     };
     el.addEventListener('touchmove', preventOverscroll, { passive: false });
     return () => el.removeEventListener('touchmove', preventOverscroll);
+  }, []);
+
+  // 스크롤 컨테이너 바깥 영역(헤더 등)에서의 터치 드래그로 인한 PWA 오버스크롤 차단
+  useEffect(() => {
+    const preventDocumentOverscroll = (e: TouchEvent) => {
+      const el = scrollContainerRef.current;
+      // 스크롤 컨테이너 내부 이벤트는 위 핸들러가 처리
+      if (el && el.contains(e.target as Node)) return;
+      // 사이드바 등 별도 스크롤 영역은 허용
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-scrollable], .overflow-y-auto')) return;
+      e.preventDefault();
+    };
+    document.addEventListener('touchmove', preventDocumentOverscroll, { passive: false });
+    return () => document.removeEventListener('touchmove', preventDocumentOverscroll);
   }, []);
 
   /**
