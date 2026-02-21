@@ -9,6 +9,7 @@
 #   init_cache()          — 서버 부팅 시 1회, DB → 메모리 적재
 #   get_capacities()      — 메모리에서 즉시 반환 (I/O 0)
 #   update_capacities()   — 메모리 업데이트 + DB 쓰기 (I/O 1)
+#   reset_capacities()    — 주간 리셋 시 메모리 + DB 모두 초기화
 import os
 import sqlite3
 import threading
@@ -81,6 +82,23 @@ def update_capacities(data: dict) -> None:
                 "ON CONFLICT(day) DO UPDATE SET value = excluded.value",
                 (day, value),
             )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def reset_capacities() -> None:
+    """주간 리셋: 메모리 캐시를 None으로 초기화하고 DB 행도 삭제한다."""
+    # 1) 메모리 초기화
+    with _lock:
+        _cache["수"] = None
+        _cache["금"] = None
+
+    # 2) DB 삭제
+    conn = sqlite3.connect(_DB_PATH)
+    try:
+        _ensure_table(conn)
+        conn.execute("DELETE FROM capacities")
         conn.commit()
     finally:
         conn.close()

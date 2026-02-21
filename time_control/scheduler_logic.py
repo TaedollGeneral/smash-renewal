@@ -141,12 +141,13 @@ def _next_saturday_midnight(now: datetime) -> datetime:
 
 
 def _reset_scheduler_worker(kst: timezone) -> None:
-    """매주 토요일 00:00 KST에 board_store.reset_all()을 호출한다.
+    """매주 토요일 00:00 KST에 board_store.reset_all()과 정원 캐시를 초기화한다.
 
     다음 토요일 자정까지 sleep한 뒤 초기화를 수행하는 무한 루프.
-    board_store는 순환 import 방지를 위해 함수 내부에서 import한다.
+    순환 import 방지를 위해 함수 내부에서 import한다.
     """
     from .board_store import reset_all
+    from admin.capacity.store import reset_capacities
 
     while True:
         now = datetime.now(kst)
@@ -157,6 +158,7 @@ def _reset_scheduler_worker(kst: timezone) -> None:
             _time.sleep(sleep_seconds)
 
         reset_all()
+        reset_capacities()
 
         # 동일 시각 재실행 방지 — 1초 대기 후 다음 루프 진입
         _time.sleep(1)
