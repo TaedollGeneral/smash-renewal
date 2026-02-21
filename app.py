@@ -20,6 +20,9 @@ app.register_blueprint(time_bp)
 from application_routes import application_bp  # 운동 신청/취소/현황 API
 app.register_blueprint(application_bp)
 
+from admin.capacity.routes import capacity_bp  # 임원진 정원 확정 API
+app.register_blueprint(capacity_bp)
+
 # --- [인메모리 게시판 초기화] ---
 # 1) 이전 백업 파일이 있으면 인메모리에 복구
 # 2) 더티 플래그 기반 백그라운드 저장 스레드 시작
