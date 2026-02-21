@@ -88,9 +88,9 @@ export function AccordionPanel({
     }
   };
 
-  // 버튼 활성화 상태 결정
-  const isApplyEnabled = status === 'open';
-  const isCancelEnabled = status === 'open' || status === 'cancel-period';
+  // 버튼 활성화 상태 결정 (manager는 status에 무관하게 항상 활성화)
+  const isApplyEnabled = isManager || status === 'open';
+  const isCancelEnabled = isManager || status === 'open' || status === 'cancel-period';
 
   // 밀리초를 적절한 형식으로 변환
   const formatTime = (milliseconds: number) => {

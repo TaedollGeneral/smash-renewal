@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, UserPlus, UserMinus } from 'lucide-react';
 import type { BoardType } from '@/types';
 
@@ -78,7 +79,7 @@ export function AdminActionModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
@@ -165,6 +166,7 @@ export function AdminActionModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
