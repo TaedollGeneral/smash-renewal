@@ -305,7 +305,7 @@ export function AccordionPanel({
               }`}
           />
           <span className="font-semibold text-sm text-black whitespace-nowrap">
-            {title}{capacity !== undefined && `(${capacity})`}
+            {title}{capacity != null && `(${capacity})`}
           </span>
         </div>
 
