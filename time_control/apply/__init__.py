@@ -58,21 +58,24 @@ def handle_apply(category: str) -> tuple[dict, int]:
         guest_name = data.get("guest_name", "").strip()
         if not guest_name:
             return {"error": "게스트 이름을 입력해주세요."}, 400
-        apply_name = _sanitize_name(guest_name)
-        apply_user_id = f"guest_{user_id}_{apply_name}"
-        apply_type = "guest"
+        sanitized_guest = _sanitize_name(guest_name)
+        # 게시판 표시: No | user_name(신청자) | guest_name(게스트) | 신청시간
+        entry = {
+            "user_id":    f"guest_{user_id}_{sanitized_guest}",
+            "name":       user_name,         # 게시판 '신청자' 열
+            "guest_name": sanitized_guest,   # 게시판 '게스트' 열
+            "type":       "guest",
+            "timestamp":  ts,
+        }
     else:
-        apply_user_id = user_id
-        apply_name = user_name
-        apply_type = "member"
+        entry = {
+            "user_id":   user_id,
+            "name":      user_name,
+            "type":      "member",
+            "timestamp": ts,
+        }
 
     # Step 5: 동시성 제어 + 인메모리 조작
-    entry = {
-        "user_id":   apply_user_id,
-        "name":      apply_name,
-        "type":      apply_type,
-        "timestamp": ts,
-    }
     success, reason = apply_entry(category, entry)
     if not success:
         return {"error": reason}, 409
