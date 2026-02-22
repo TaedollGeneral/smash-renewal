@@ -135,6 +135,45 @@ def login():
 
     return jsonify({'message': '아이디 또는 비밀번호가 올바르지 않습니다.'}), 401
 
+@auth_bp.route('/api/change-password', methods=['POST'])
+@token_required
+def change_password():
+    """현재 비밀번호 검증 후 새 비밀번호로 갱신한다.
+
+    Request Headers:
+        Authorization: Bearer <JWT>
+
+    Request Body (JSON):
+        current_password (str): 현재 비밀번호 평문
+        new_password     (str): 변경할 새 비밀번호 평문
+
+    Responses:
+        200: 비밀번호 변경 성공
+        400: 필수 필드 누락
+        401: 현재 비밀번호 불일치
+        500: DB 갱신 실패 (예: 사용자 레코드 없음)
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': '요청 데이터가 없습니다.'}), 400
+
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+
+    if not current_password or not new_password:
+        return jsonify({'message': 'current_password와 new_password를 모두 입력해주세요.'}), 400
+
+    student_id = request.current_user['id']
+
+    if not verify_password(student_id, current_password):
+        return jsonify({'message': '현재 비밀번호가 올바르지 않습니다.'}), 401
+
+    if not update_password(student_id, new_password):
+        return jsonify({'message': '비밀번호 변경에 실패했습니다.'}), 500
+
+    return jsonify({'message': '비밀번호가 성공적으로 변경되었습니다.'}), 200
+
+
 # 사용 예시: 보호된 라우트
 # @auth_bp.route('/api/protected', methods=['GET'])
 # @token_required
