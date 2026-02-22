@@ -2,18 +2,8 @@
 import os
 from flask import Flask
 
-from dotenv import load_dotenv   # 👈 1. 추가
-load_dotenv()                    # 👈 2. 추가 (.env 파일을 OS 환경변수로 싹 밀어넣음)
-
-from smash_db.auth import auth_bp
-
-app = Flask(__name__)
-
-# 이제 os.environ.get이 .env 파일 안의 값을 정상적으로 찾아냅니다!
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-if not app.config['SECRET_KEY']:
-    raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
-from smash_db.auth import auth_bp  # smash_db 폴더의 인증 로직 가져오기
+from dotenv import load_dotenv
+load_dotenv()  # .env 파일을 OS 환경변수로 로드
 
 app = Flask(__name__)
 
@@ -23,7 +13,7 @@ if not app.config['SECRET_KEY']:
     raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
 
 # --- [모듈 등록 구역] ---
-# 앞으로 기능이 추가될 때마다 아래에 register_blueprint를 추가하면 됩니다.
+from smash_db.auth import auth_bp
 app.register_blueprint(auth_bp)
 
 from time_control.time_handler import time_bp, KST  # 시간 상태 폴링 API
