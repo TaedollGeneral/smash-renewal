@@ -106,12 +106,18 @@ def apply_entry(category: str, entry: dict) -> tuple[bool, str | None]:
                 return False, "이미 신청되어 있습니다."
 
         _board_data[category].append(entry)
-        _board_data[category].sort(
-            key=lambda x: (
-                not ("(ob)" in x["name"].lower() or "(교류전)" in x["name"].lower()),
-                x["timestamp"],
+
+        # 게스트 카테고리만 특수 키워드 우선 정렬, 나머지는 순수 timestamp 정렬
+        _guest_categories = {Category.WED_GUEST.value, Category.FRI_GUEST.value}
+        if category in _guest_categories:
+            _board_data[category].sort(
+                key=lambda x: (
+                    not ("(ob)" in x["name"].lower() or "(교류전)" in x["name"].lower()),
+                    x["timestamp"],
+                )
             )
-        )
+        else:
+            _board_data[category].sort(key=lambda x: x["timestamp"])
         _is_board_changed = True
 
     return True, None
