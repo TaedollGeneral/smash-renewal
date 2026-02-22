@@ -5,9 +5,10 @@ import { formatTimestamp } from '@/lib/utils';
 interface BoardTableProps {
   type: BoardType;
   applications?: BoardEntry[];
+  highlightCount?: number;
 }
 
-export function BoardTable({ type, applications = [] }: BoardTableProps) {
+export function BoardTable({ type, applications = [], highlightCount }: BoardTableProps) {
 
   const renderHeaders = () => {
     switch (type) {
@@ -53,29 +54,35 @@ export function BoardTable({ type, applications = [] }: BoardTableProps) {
   const fmtTime = (entry: BoardEntry) => formatTimestamp(entry.timestamp * 1000);
 
   const renderRows = () => {
+    const hi = (index: number) =>
+      highlightCount != null && index < highlightCount
+        ? 'text-green-600'
+        : 'text-white';
+
     switch (type) {
       case '운동':
         return applications.map((entry, index) => {
-          // 👈 상위 10명 조건 추가
-          const textColor = index < 10 ? 'text-green-400' : 'text-white';
-
+          const textColor = hi(index);
           return (
             <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
               <td className={`py-2 pl-2 pr-1 text-center text-xs sticky left-0 z-10 bg-inherit ${textColor}`}>{index + 1}</td>
               <td className={`py-2 px-2 text-center text-xs ${textColor}`}>{entry.name}</td>
-              <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
+              <td className={`py-2 px-1 text-center text-xs tabular-nums ${textColor}`}>{fmtTime(entry)}</td>
             </tr>
           );
         });
       case '게스트':
-        return applications.map((entry, index) => (
-          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{entry.guest_name ?? '-'}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
-          </tr>
-        ));
+        return applications.map((entry, index) => {
+          const textColor = hi(index);
+          return (
+            <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+              <td className={`py-2 pl-2 pr-1 text-center text-xs sticky left-0 z-10 bg-inherit ${textColor}`}>{index + 1}</td>
+              <td className={`py-2 px-2 text-center text-xs ${textColor}`}>{entry.name}</td>
+              <td className={`py-2 px-2 text-center text-xs ${textColor}`}>{entry.guest_name ?? '-'}</td>
+              <td className={`py-2 px-1 text-center text-xs tabular-nums ${textColor}`}>{fmtTime(entry)}</td>
+            </tr>
+          );
+        });
       case '레슨':
         return applications.map((entry, index) => (
           <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
@@ -86,14 +93,17 @@ export function BoardTable({ type, applications = [] }: BoardTableProps) {
           </tr>
         ));
       case '잔여석':
-        return applications.map((entry, index) => (
-          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
-            <td className="py-2 px-1 text-center text-xs text-white">{entry.guest_name ?? '-'}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
-          </tr>
-        ));
+        return applications.map((entry, index) => {
+          const textColor = hi(index);
+          return (
+            <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+              <td className={`py-2 pl-2 pr-1 text-center text-xs sticky left-0 z-10 bg-inherit ${textColor}`}>{index + 1}</td>
+              <td className={`py-2 px-2 text-center text-xs ${textColor}`}>{entry.name}</td>
+              <td className={`py-2 px-1 text-center text-xs ${textColor}`}>{entry.guest_name ?? '-'}</td>
+              <td className={`py-2 px-1 text-center text-xs tabular-nums ${textColor}`}>{fmtTime(entry)}</td>
+            </tr>
+          );
+        });
     }
   };
 
