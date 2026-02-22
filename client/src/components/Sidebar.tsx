@@ -10,7 +10,7 @@ interface SidebarProps {
   user: User | null;
   setUser: (user: User | null) => void;
   capacities: Capacity;
-  onCapacitiesChange: (capacities: Capacity) => void;
+  onCapacitiesChange: (capacities: { 수?: number; 금?: number }) => void;
 }
 
 export function Sidebar({
@@ -209,7 +209,7 @@ export function Sidebar({
       {/* Capacity Setting Modal */}
       <CapacitySettingModal
         isOpen={showCapacityModal}
-        currentCapacities={capacities}
+        currentCapacities={{ 수: capacities.수?.total, 금: capacities.금?.total }}
         onSave={onCapacitiesChange}
         onClose={() => setShowCapacityModal(false)}
       />
