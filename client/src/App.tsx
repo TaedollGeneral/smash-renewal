@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
-import type { DayType, BoardType, User, Capacity, CategoryState } from '@/types';
+import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState } from '@/types';
 
 
 function App() {
@@ -375,7 +375,7 @@ function App() {
               onToggle={() => togglePanel(panel)}
               dayType={currentDay}
               user={user}
-              capacity={panel === '운동' ? capacities[currentDay]?.total : undefined}
+              capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
               categoryState={categoryStates[currentDay][panel]}
               onCountdownZero={() => handleCountdownZero(currentDay, panel)}
             />
