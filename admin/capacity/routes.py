@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify
 from admin.auth import admin_required
 from admin.capacity.store import update_capacities, get_capacities
 from time_control.scheduler_logic import Category
-from time_control.time_handler import _calculate_capacity_details, _count_special_guests
+from admin.capacity.calculator import calculate_capacity_details, count_special_guests
 
 capacity_bp = Blueprint('admin_capacity', __name__)
 
@@ -34,10 +34,10 @@ def set_capacity():
         if total is None:
             capacities[day] = None
         else:
-            special_count = _count_special_guests(guest_category_map[day])
+            special_count = count_special_guests(guest_category_map[day])
             capacities[day] = {
                 "total": total,
-                "details": _calculate_capacity_details(total, special_count),
+                "details": calculate_capacity_details(total, special_count),
             }
 
     return jsonify({'message': '정원이 확정되었습니다.', 'capacities': capacities}), 200
