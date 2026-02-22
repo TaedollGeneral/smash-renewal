@@ -16,6 +16,7 @@ from .scheduler_logic import (
     get_current_status,
     get_next_change,
 )
+from . import board_store
 
 time_bp = Blueprint("time", __name__)
 
@@ -27,6 +28,42 @@ KST = timezone(timedelta(hours=9))
 def _now_kst() -> datetime:
     """현재 KST 시각을 반환한다."""
     return datetime.now(KST)
+
+
+# ── 정원 상세 헬퍼 ─────────────────────────────────────────────────────────────
+
+def _calculate_capacity_details(total: int, special_count: int) -> dict:
+    """총 정원을 동아리 규칙에 따라 3가지 카테고리로 분리한다.
+
+    현재는 더미 로직으로 하드코딩:
+        total=48 기준 → 운동 40, 게스트 limit 4, 잔여석 4
+
+    Args:
+        total: 총 정원 (예: 48)
+        special_count: 게스트 명단 중 (ob)/(교류전) 특수 인원 수
+
+    Returns:
+        {"운동": int, "게스트": {"limit": int, "special_count": int}, "잔여석": int}
+    """
+    return {
+        "운동": 40,
+        "게스트": {
+            "limit": 4,
+            "special_count": special_count,
+        },
+        "잔여석": 4,
+    }
+
+
+def _count_special_guests(category: str) -> int:
+    """해당 카테고리 게스트 명단에서 (ob)/(교류전) 특수 인원 수를 센다."""
+    entries = board_store.get_board(category)
+    count = 0
+    for entry in entries:
+        name_lower = entry["name"].lower()
+        if "(ob)" in name_lower or "(교류전)" in name_lower:
+            count += 1
+    return count
 
 
 # ── 매핑 테이블 ────────────────────────────────────────────────────────────────
@@ -105,15 +142,33 @@ def get_category_states():
 
 @time_bp.route("/api/capacities", methods=["GET"])
 def get_capacities():
-    """운동 정원을 반환한다.
+    """운동 정원을 상세 포맷으로 반환한다.
 
     Response (JSON):
-        { "수": number | null, "금": number | null }
+        {
+          "수": { "total": 48, "details": { "운동": 40, "게스트": {"limit": 4, "special_count": 2}, "잔여석": 4 } } | null,
+          "금": { ... } | null
+        }
 
     인메모리 캐시에서 즉시 반환 (DB I/O 없음).
     """
     from admin.capacity.store import get_capacities as _get
-    return jsonify(_get()), 200
+
+    raw = _get()
+    guest_category_map = {"수": Category.WED_GUEST, "금": Category.FRI_GUEST}
+
+    result = {}
+    for day, total in raw.items():
+        if total is None:
+            result[day] = None
+        else:
+            special_count = _count_special_guests(guest_category_map[day])
+            result[day] = {
+                "total": total,
+                "details": _calculate_capacity_details(total, special_count),
+            }
+
+    return jsonify(result), 200
 
 
 # ── 역할 2: Command Validation — Guard Clause ──────────────────────────────────
