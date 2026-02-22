@@ -108,7 +108,7 @@ def apply_entry(category: str, entry: dict) -> tuple[bool, str | None]:
         _board_data[category].append(entry)
         _board_data[category].sort(
             key=lambda x: (
-                not ("(ob)" in x["name"].lower() or "(교류전)" in x["name"].lower()),
+                not ("(ob)" in x.get("guest_name", "").lower() or "(교류전)" in x.get("guest_name", "").lower()),
                 x["timestamp"],
             )
         )
