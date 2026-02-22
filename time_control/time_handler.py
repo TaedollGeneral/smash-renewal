@@ -130,7 +130,7 @@ def get_capacities():
             special_count = count_special_guests(guest_category_map[day])
             result[day] = {
                 "total": total,
-                "details": calculate_capacity_details(total, special_count),
+                "details": calculate_capacity_details(day, total, special_count),
             }
 
     return jsonify(result), 200

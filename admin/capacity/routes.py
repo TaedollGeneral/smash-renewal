@@ -37,7 +37,7 @@ def set_capacity():
             special_count = count_special_guests(guest_category_map[day])
             capacities[day] = {
                 "total": total,
-                "details": calculate_capacity_details(total, special_count),
+                "details": calculate_capacity_details(day, total, special_count),
             }
 
     return jsonify({'message': '정원이 확정되었습니다.', 'capacities': capacities}), 200
