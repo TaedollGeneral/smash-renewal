@@ -13,9 +13,25 @@ export interface User {
   token: string;
 }
 
+export interface GuestCapacity {
+  limit: number;
+  special_count: number;
+}
+
+export interface CapacityDetails {
+  운동: number;
+  게스트: GuestCapacity;
+  잔여석: number;
+}
+
+export interface CapacityDay {
+  total: number;
+  details: CapacityDetails;
+}
+
 export interface Capacity {
-  수?: number;
-  금?: number;
+  수: CapacityDay | null;
+  금: CapacityDay | null;
 }
 
 export interface CategoryState {

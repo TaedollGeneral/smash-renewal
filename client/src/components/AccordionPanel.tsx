@@ -2,7 +2,7 @@ import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { BoardTable } from './BoardTable';
 import { AdminActionModal } from './AdminActionModal';
-import type { CategoryState } from '@/types';
+import type { CategoryState, GuestCapacity } from '@/types';
 import type { User } from '@/types';
 import { useScheduleSystem, Category } from '@/hooks/useScheduleSystem';
 
@@ -27,7 +27,7 @@ interface AccordionPanelProps {
   onToggle: () => void;
   dayType: DayType;
   user: User | null;
-  capacity?: number; // 운동 정원 (서버 응답에서 수신)
+  capacity?: number | GuestCapacity; // 정원 정보 (서버 응답에서 수신)
   /**
    * 서버에서 받아온 카테고리 상태
    * deadlineTimestamp: 절대 시각(Unix ms) → 폴링과 무관하게 클라이언트가 연속 계산
@@ -305,7 +305,14 @@ export function AccordionPanel({
               }`}
           />
           <span className="font-semibold text-sm text-black whitespace-nowrap">
-            {title}{capacity != null && `(${capacity})`}
+            {title}
+            {capacity != null && (
+              typeof capacity === 'object'
+                ? capacity.special_count > 0
+                  ? `(${capacity.limit}+${capacity.special_count})`
+                  : `(${capacity.limit})`
+                : `(${capacity})`
+            )}
           </span>
         </div>
 

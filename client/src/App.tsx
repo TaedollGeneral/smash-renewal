@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
-import type { DayType, BoardType, User, Capacity, CategoryState } from '@/types';
+import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState } from '@/types';
 
 
 function App() {
@@ -46,7 +46,7 @@ function App() {
    * 정원 상태
    * - 초기값: undefined (서버 응답 전까지 로딩 처리)
    */
-  const [capacities, setCapacities] = useState<Capacity>({ 수: undefined, 금: undefined });
+  const [capacities, setCapacities] = useState<Capacity>({ 수: null, 금: null });
 
   // Pull-to-refresh 상태 관리
   const [isPulling, setIsPulling] = useState(false);
@@ -226,22 +226,31 @@ function App() {
     }
   };
 
-  const handleCapacitiesChange = async (newCapacities: Capacity) => {
-    setCapacities(newCapacities);
+  const handleCapacitiesChange = async (newCapacities: { 수?: number; 금?: number }) => {
     try {
       const token = localStorage.getItem('smash_token') ?? '';
+
+      // total 숫자만 추출하여 전송
+      const payload: Record<string, number> = {};
+      if (newCapacities.수 != null) payload['수'] = newCapacities.수;
+      if (newCapacities.금 != null) payload['금'] = newCapacities.금;
+
       const response = await fetch('/api/admin/capacity', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(newCapacities),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error ?? '정원 확정에 실패했습니다.');
       }
+
+      // 서버 응답의 상세 포맷 데이터로 상태 업데이트
+      const data = await response.json();
+      setCapacities(data.capacities);
     } catch (error) {
       console.error('[정원 확정] API 호출 실패:', error);
       alert(error instanceof Error ? error.message : '정원 확정에 실패했습니다.');
@@ -366,7 +375,7 @@ function App() {
               onToggle={() => togglePanel(panel)}
               dayType={currentDay}
               user={user}
-              capacity={panel === '운동' ? capacities[currentDay] : undefined}
+              capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
               categoryState={categoryStates[currentDay][panel]}
               onCountdownZero={() => handleCountdownZero(currentDay, panel)}
             />
