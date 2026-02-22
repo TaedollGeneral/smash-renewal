@@ -35,8 +35,8 @@ def calculate_capacity_details(day: str, total_capacity: int, special_count: int
         guest_entries = board_store.get_board(Category.FRI_GUEST)
         g = sum(
             1 for entry in guest_entries
-            if "(ob)" not in entry["name"].lower()
-            and "(교류전)" not in entry["name"].lower()
+            if "(ob)" not in entry.get("guest_name", "").lower()
+            and "(교류전)" not in entry.get("guest_name", "").lower()
         )
         guest_limit = min(g, 2)
         r = f - guest_limit
@@ -66,7 +66,7 @@ def count_special_guests(category: str) -> int:
     entries = board_store.get_board(category)
     count = 0
     for entry in entries:
-        name_lower = entry["name"].lower()
-        if "(ob)" in name_lower or "(교류전)" in name_lower:
+        guest_lower = entry.get("guest_name", "").lower()
+        if "(ob)" in guest_lower or "(교류전)" in guest_lower:
             count += 1
     return count

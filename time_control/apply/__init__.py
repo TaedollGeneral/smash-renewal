@@ -21,7 +21,7 @@ from ..board_store import apply_entry
 from ..time_handler import validate_apply_time, _now_kst
 
 
-_GUEST_CATEGORIES = {"WED_GUEST", "FRI_GUEST"}
+_GUEST_CATEGORIES = {"WED_GUEST", "FRI_GUEST", "WED_LEFTOVER", "FRI_LEFTOVER"}
 
 
 def _is_guest_category(category: str) -> bool:
