@@ -21,10 +21,12 @@ def set_capacity():
     응답에 상세 포맷(details)을 포함하여 반환한다.
     """
     data = request.get_json()
-    if not data:
+    if data is None:
         return jsonify({'error': '요청 데이터가 없습니다.'}), 400
 
-    update_capacities(data)
+# 만약을 대비해 확실하게 정수로 변환하여 업데이트 로직에 전달 (문자열 폭탄 방어)
+    safe_data = {k: int(v) for k, v in data.items() if v is not None}
+    update_capacities(safe_data)
 
     raw = get_capacities()
     guest_category_map = {"수": Category.WED_GUEST, "금": Category.FRI_GUEST}

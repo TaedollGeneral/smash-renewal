@@ -185,16 +185,12 @@
 html {
   font-size: var(--font-size);
   overscroll-behavior: none;
-  overflow: hidden;
-  height: 100%;
 }
 
 body {
   overscroll-behavior: none;
-  overflow: hidden;
-  position: fixed;
   width: 100%;
-  height: 100%;
+  height: 100dvh;
 }
 
 /* Custom scrollbar styling for board tables */

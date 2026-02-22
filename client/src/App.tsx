@@ -232,8 +232,9 @@ function App() {
 
       // total 숫자만 추출하여 전송
       const payload: Record<string, number> = {};
-      if (newCapacities.수 != null) payload['수'] = newCapacities.수;
-      if (newCapacities.금 != null) payload['금'] = newCapacities.금;
+      // Number()로 감싸서 문자열이 섞여 있어도 확실하게 숫자로 변환 후 전송
+      if (newCapacities.수 != null) payload['수'] = Number(newCapacities.수);
+      if (newCapacities.금 != null) payload['금'] = Number(newCapacities.금);
 
       const response = await fetch('/api/admin/capacity', {
         method: 'POST',
@@ -274,7 +275,7 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C5D99] relative overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-[#1C5D99] relative">
       {/* Background texture layer */}
       <div className="absolute inset-0 pointer-events-none z-0">
         {/* Subtle noise pattern */}

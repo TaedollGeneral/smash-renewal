@@ -81,28 +81,26 @@ export function CapacitySettingModal({
           <button
             type="button"
             onClick={() => setCurrentDay('수')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentDay === '수'
-                ? 'bg-[#1C5D99] text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
-            }`}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${currentDay === '수'
+              ? 'bg-[#1C5D99] text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
+              }`}
           >
             수요일
           </button>
           <button
             type="button"
             onClick={() => setCurrentDay('금')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentDay === '금'
-                ? 'bg-[#1C5D99] text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
-            }`}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${currentDay === '금'
+              ? 'bg-[#1C5D99] text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
+              }`}
           >
             금요일
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {currentDay}요일 운동 정원

@@ -45,6 +45,60 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def verify_password(student_id: str, current_password: str) -> bool:
+    """입력받은 현재 비밀번호 평문과 DB에 저장된 해시값을 비교하여 일치 여부를 반환한다.
+
+    Args:
+        student_id: 검증 대상 사용자의 학번.
+        current_password: 사용자가 입력한 현재 비밀번호 평문.
+
+    Returns:
+        비밀번호가 일치하면 True, 사용자가 없거나 불일치하면 False.
+    """
+    conn = get_db_connection()
+    user = conn.execute(
+        'SELECT password FROM users WHERE student_id = ?', (student_id,)
+    ).fetchone()
+    conn.close()
+
+    if user is None:
+        return False
+
+    return bcrypt.checkpw(
+        current_password.encode('utf-8'),
+        user['password'].encode('utf-8')
+    )
+
+
+def update_password(student_id: str, new_password: str) -> bool:
+    """새 비밀번호를 bcrypt로 해시하여 DB의 해당 사용자 레코드를 갱신한다.
+
+    기존 회원가입(init_db.py)과 동일한 알고리즘(bcrypt + gensalt)을 사용하며
+    평문은 절대 저장하지 않는다.
+
+    Args:
+        student_id: 비밀번호를 변경할 사용자의 학번.
+        new_password: 새 비밀번호 평문.
+
+    Returns:
+        실제로 레코드가 갱신되면 True, 해당 사용자가 없으면 False.
+    """
+    hashed_pw = bcrypt.hashpw(
+        new_password.encode('utf-8'), bcrypt.gensalt()
+    ).decode('utf-8')
+
+    conn = get_db_connection()
+    cursor = conn.execute(
+        'UPDATE users SET password = ? WHERE student_id = ?',
+        (hashed_pw, student_id)
+    )
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
+
+    return updated
+
+
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
