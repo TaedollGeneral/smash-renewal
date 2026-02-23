@@ -221,7 +221,7 @@ export function useScheduleSystem(category: Category) {
 
         const data = await response.json();
         if (!response.ok) {
-          return { success: false, error: data.error ?? '대리 신청에 실패했습니다.', data };
+          return { success: false, error: data.error ?? data.message ?? '대리 신청에 실패했습니다.', data };
         }
 
         await poll();
@@ -249,7 +249,7 @@ export function useScheduleSystem(category: Category) {
 
         const data = await response.json();
         if (!response.ok) {
-          return { success: false, error: data.error ?? '대리 취소에 실패했습니다.', data };
+          return { success: false, error: data.error ?? data.message ?? '대리 취소에 실패했습니다.', data };
         }
 
         await poll();
