@@ -78,11 +78,15 @@ def handle_admin_apply(category: str) -> tuple[dict, int]:
 
     if not target_user_id:
         return {"error": "target_user_id가 필요합니다."}, 400
+    if len(target_user_id) > 20:
+        return {"error": "유효하지 않은 target_user_id입니다."}, 400
+    if target_guest_name and len(target_guest_name) > 20:
+        return {"error": "게스트 이름은 20자 이하로 입력해주세요."}, 400
 
     # Step 4: DB 조회 — 클라이언트 값을 신뢰하지 않고 서버에서 직접 이름 조회
     member = _lookup_member(target_user_id)
     if not member:
-        return {"error": f"존재하지 않는 회원입니다: {target_user_id}"}, 404
+        return {"error": "존재하지 않는 회원입니다."}, 404
 
     member_id = member["student_id"]
     member_name = member["name"]
@@ -144,6 +148,8 @@ def handle_admin_cancel(category: str) -> tuple[dict, int]:
 
     if not target_user_id:
         return {"error": "target_user_id가 필요합니다."}, 400
+    if len(target_user_id) > 20:
+        return {"error": "유효하지 않은 target_user_id입니다."}, 400
 
     # Step 4: 취소 대상 탐색 + 인메모리 조작 (is_board_changed = True 내부 처리)
     # [1차] 정확 일치: 일반 회원 항목

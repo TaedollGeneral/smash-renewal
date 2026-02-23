@@ -29,17 +29,6 @@ const pool = mysql.createPool({
 
 const promisePool = pool.promise();
 
-// DB 연결 테스트 API
-app.get('/test-db', async (req, res) => {
-    try {
-        const [rows] = await promisePool.query('SELECT 1 + 1 AS solution');
-        res.json({ message: 'DB 연결 성공!', solution: rows[0].solution });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'DB 연결 실패', error: err.message });
-    }
-});
-
 // ── Flask 리버스 프록시 ────────────────────────────────────────────────────────
 // /api/* 와 Flask Blueprint 경로들을 127.0.0.1:5000(Flask)으로 전달한다.
 // SPA catch-all보다 반드시 앞에 위치해야 한다.

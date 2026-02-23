@@ -140,7 +140,13 @@ def get_status():
     status = get_current_status(category, now)
     applications = get_board(category)
 
+    # user_id(학번)는 공개 API에서 제외 — 이름/게스트명/타입/순번만 노출
+    safe_applications = [
+        {k: v for k, v in entry.items() if k != "user_id"}
+        for entry in applications
+    ]
+
     return jsonify({
         "status": status,
-        "applications": applications,
+        "applications": safe_applications,
     }), 200

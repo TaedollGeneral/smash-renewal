@@ -58,6 +58,8 @@ def handle_apply(category: str) -> tuple[dict, int]:
         guest_name = data.get("guest_name", "").strip()
         if not guest_name:
             return {"error": "게스트 이름을 입력해주세요."}, 400
+        if len(guest_name) > 20:
+            return {"error": "게스트 이름은 20자 이하로 입력해주세요."}, 400
         sanitized_guest = _sanitize_name(guest_name)
         # 게시판 표시: No | user_name(신청자) | guest_name(게스트) | 신청시간
         entry = {
