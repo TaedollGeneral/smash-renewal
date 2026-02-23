@@ -218,6 +218,23 @@ def get_subscribers_for_day(day: str) -> list[str]:
                 if prefs.get(day, False)]
 
 
+def set_wed_confirmed(value: bool) -> None:
+    """수요일 정원 확정 상태를 변경한다.
+
+    단순 대입(`is_wed_confirmed = True`)은 외부 모듈에서 전역 변수를 수정하지 못하므로
+    반드시 이 함수를 통해 변경해야 한다.
+    관리자가 수요일 정원을 확정할 때 호출하고, 매주 리셋 시 False로 되돌린다.
+    """
+    global is_wed_confirmed
+    is_wed_confirmed = value
+
+
+def set_fri_confirmed(value: bool) -> None:
+    """금요일 정원 확정 상태를 변경한다."""
+    global is_fri_confirmed
+    is_fri_confirmed = value
+
+
 def check_rate_limit(user_id: str, max_requests: int = 5,
                      window_seconds: float = 60.0) -> bool:
     """Rate limit 검사: window 내 요청 횟수가 max_requests를 초과하면 False 반환.
