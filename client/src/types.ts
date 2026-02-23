@@ -39,3 +39,10 @@ export interface CategoryState {
   statusText: string;
   deadlineTimestamp: number; // Unix ms timestamp
 }
+
+// /api/notifications/status 응답 형태
+export interface NotifStatus {
+  wed_confirmed: boolean;  // 수요일 정원 확정 여부
+  fri_confirmed: boolean;  // 금요일 정원 확정 여부
+  prefs: Record<string, boolean>;  // 카테고리별 알림 설정 (예: {"WED_REGULAR": true, ...})
+}

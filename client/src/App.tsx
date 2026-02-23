@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Toaster } from 'sonner';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
-import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState } from '@/types';
+import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState, NotifStatus } from '@/types';
 import { Category, fetchBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 
 function App() {
@@ -23,6 +25,43 @@ function App() {
     }
     return null;
   });
+
+  // ─── 알림 상태 (수/금 확정 여부 + 본인 알림 On/Off) ─────────────────────────
+  const [notifStatus, setNotifStatus] = useState<NotifStatus | null>(null);
+  const { registerPush } = usePushNotifications();
+
+  // /api/notifications/status 조회
+  const fetchNotifStatus = useCallback(async (token: string) => {
+    try {
+      const res = await fetch('/api/notifications/status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setNotifStatus(await res.json());
+    } catch (err) {
+      console.warn('[알림 상태] 조회 실패:', err);
+    }
+  }, []);
+
+  // 로그인 완료 또는 페이지 로드 시:
+  //   1) PWA 알림 권한 요청 + 구독 등록 (UPSERT로 멱등)
+  //   2) 알림 설정 상태 초기 조회
+  // 로그아웃 시: notifStatus 초기화
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (user) {
+      registerPush(user.token);
+      fetchNotifStatus(user.token);
+    } else {
+      setNotifStatus(null);
+    }
+  }, [user]);
+
+  // 알림 On/Off 토글 성공 시 부모 상태 업데이트 (AccordionPanel → App)
+  const handleNotifToggle = useCallback((category: string, enabled: boolean) => {
+    setNotifStatus((prev) =>
+      prev ? { ...prev, prefs: { ...prev.prefs, [category]: enabled } } : null
+    );
+  }, []);
 
   // JWT 토큰 만료 체크
   useEffect(() => {
@@ -311,6 +350,9 @@ function App() {
   };
 
   return (
+    <>
+    {/* Sonner 토스트 컨테이너 — AccordionPanel의 toast() 호출이 여기서 렌더됨 */}
+    <Toaster position="top-center" richColors />
     <div className="flex flex-col h-[100dvh] bg-[#1C5D99] relative">
       {/* Background texture layer */}
       <div className="absolute inset-0 pointer-events-none z-0">
@@ -417,12 +459,16 @@ function App() {
               onCountdownZero={() => handleCountdownZero(currentDay, panel)}
               allApplications={allApplications}
               onActionSuccess={fetchAllBoards}
+              notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
+              notifPrefs={notifStatus?.prefs ?? {}}
+              onNotifToggle={handleNotifToggle}
             />
           ))}
         </div>
       </div>
 
     </div>
+    </>
   );
 }
 

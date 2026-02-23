@@ -154,15 +154,24 @@ def get_all_subscriptions() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+# ── 알림 대상 카테고리 집합 ──────────────────────────────────────────────────
+# 레슨(WED_LESSON)은 정원 개념이 없으므로 알림 기능 미지원.
+NOTIF_CATEGORIES: frozenset[str] = frozenset({
+    "WED_REGULAR", "WED_GUEST", "WED_LEFTOVER",
+    "FRI_REGULAR", "FRI_GUEST", "FRI_LEFTOVER",
+})
+
 # ── In-Memory 상태 ────────────────────────────────────────────────────────────
 #
 # 아래 전역 변수들은 서버 프로세스 수명과 동일하게 메모리에 상주한다.
 # DB를 거치지 않으므로 I/O 비용이 없으며, 서버 재시작 시 초기값으로 돌아간다.
 # (구독 정보는 SQLite에서 복구되지만 아래 상태는 모두 초기화됨)
 
-# 사용자별 카테고리 알림 구독 상태
-# 구조: {user_id: {"wed": bool, "fri": bool}}
-# 예: {"20231234": {"wed": True, "fri": False}}
+# 사용자별 카테고리별 알림 구독 상태
+# 구조: {user_id: {category: bool}}
+# 예: {"20231234": {"WED_REGULAR": True, "FRI_GUEST": False, ...}}
+_DEFAULT_PREFS: dict[str, bool] = {cat: False for cat in sorted(NOTIF_CATEGORIES)}
+
 category_subscribers: dict[str, dict[str, bool]] = {}
 
 # 요일별 정원 확정 상태 (관리자가 확정 버튼을 눌렀을 때 True로 전환)
@@ -180,42 +189,42 @@ _mem_lock = threading.Lock()   # 인메모리 상태 동시 접근 보호
 
 
 def get_user_prefs(user_id: str) -> dict[str, bool]:
-    """사용자의 카테고리 알림 설정을 반환한다.
+    """사용자의 카테고리별 알림 설정을 반환한다.
 
     Returns:
-        {"wed": bool, "fri": bool}  — 미등록 사용자는 기본값 False 반환
+        {category: bool, ...}  — NOTIF_CATEGORIES 전체 키, 미등록 시 기본값 False
     """
     with _mem_lock:
-        return dict(category_subscribers.get(user_id, {"wed": False, "fri": False}))
+        return dict(category_subscribers.get(user_id, _DEFAULT_PREFS))
 
 
-def set_user_pref(user_id: str, day: str, enabled: bool) -> None:
-    """사용자의 특정 요일 알림 설정을 변경한다.
+def set_user_pref(user_id: str, category: str, enabled: bool) -> None:
+    """사용자의 특정 카테고리 알림 설정을 변경한다.
 
     Args:
-        user_id: JWT에서 추출한 학번
-        day:     "wed" 또는 "fri"
-        enabled: True(구독) / False(해제)
+        user_id:  JWT에서 추출한 학번
+        category: NOTIF_CATEGORIES 중 하나 (예: "WED_REGULAR")
+        enabled:  True(구독) / False(해제)
     """
     with _mem_lock:
         if user_id not in category_subscribers:
-            category_subscribers[user_id] = {"wed": False, "fri": False}
-        if day in ("wed", "fri"):
-            category_subscribers[user_id][day] = enabled
+            category_subscribers[user_id] = dict(_DEFAULT_PREFS)
+        if category in NOTIF_CATEGORIES:
+            category_subscribers[user_id][category] = enabled
 
 
-def get_subscribers_for_day(day: str) -> list[str]:
-    """특정 요일 알림을 구독 중인 user_id 목록을 반환한다.
+def get_subscribers_for_category(category: str) -> list[str]:
+    """특정 카테고리 알림을 구독 중인 user_id 목록을 반환한다.
 
     Args:
-        day: "wed" 또는 "fri"
+        category: NOTIF_CATEGORIES 중 하나 (예: "WED_REGULAR")
 
     Returns:
         구독 중인 user_id 리스트
     """
     with _mem_lock:
         return [uid for uid, prefs in category_subscribers.items()
-                if prefs.get(day, False)]
+                if prefs.get(category, False)]
 
 
 def set_wed_confirmed(value: bool) -> None:

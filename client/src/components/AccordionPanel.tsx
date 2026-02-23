@@ -1,5 +1,6 @@
 import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { BoardTable } from './BoardTable';
 import { AdminActionModal } from './AdminActionModal';
 import type { CategoryState, GuestCapacity, User } from '@/types';
@@ -36,6 +37,13 @@ interface AccordionPanelProps {
   // 부모로부터 데이터와 리프레시 함수를 받음
   allApplications: Record<string, BoardEntry[]>;
   onActionSuccess: () => void;
+  // ── 알림 설정 (레슨 제외 모든 패널) ──────────────────────────────────────
+  /** 해당 요일의 정원 확정 여부 (False면 토글 비활성, 클릭 시 안내 Toast) */
+  notifConfirmed?: boolean;
+  /** 카테고리별 알림 On/Off 상태 맵 (백엔드 /api/notifications/status prefs) */
+  notifPrefs?: Record<string, boolean>;
+  /** 토글 성공 시 부모 상태 업데이트 콜백 */
+  onNotifToggle?: (category: string, enabled: boolean) => void;
 }
 
 export function AccordionPanel({
@@ -48,7 +56,10 @@ export function AccordionPanel({
   categoryState,
   onCountdownZero,
   allApplications,
-  onActionSuccess
+  onActionSuccess,
+  notifConfirmed = false,
+  notifPrefs = {},
+  onNotifToggle,
 }: AccordionPanelProps) {
   const { status, statusText, deadlineTimestamp } = categoryState;
 
@@ -56,6 +67,8 @@ export function AccordionPanel({
   // 현재 패널의 카테고리 판별 후, 부모가 준 전체 데이터에서 내 데이터만 꺼내오기!
   const category = CATEGORY_MAP[`${dayType}_${title}`] ?? Category.WED_REGULAR;
   const applications = allApplications[category] || []; // 렌더링에 사용
+  // 이 패널의 카테고리에 해당하는 알림 On/Off 상태 (부모에서 받은 prefs 맵에서 추출)
+  const notifEnabled = notifPrefs[category as string] ?? false;
 
   const { apply, cancel, adminApply, adminCancel } = useScheduleSystem(category);
 
@@ -71,7 +84,6 @@ export function AccordionPanel({
     onCountdownZeroRef.current = onCountdownZero;
   });
 
-  const [notification1Enabled, setNotification1Enabled] = useState(false);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
   const [isApplyMode, setIsApplyMode] = useState(true);
@@ -231,11 +243,41 @@ export function AccordionPanel({
     }
   };
 
-  // ── 5. 알림 토글 핸들러 ─────────────────────────────────────────
-  const handleNotification1Toggle = (e: React.MouseEvent) => {
+  // ── 5. 알림 토글 핸들러 (레슨 제외 모든 패널) ───────────────────
+  // - 정원 미확정(notifConfirmed=false): Toast 안내 후 종료
+  // - 정원 확정(notifConfirmed=true): API 호출 → 성공 시 부모 상태 업데이트
+  const handleNotification1Toggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotification1Enabled(!notification1Enabled);
-    console.log(`${title} - 알림: ${!notification1Enabled ? '켜짐' : '꺼짐'}`);
+
+    if (!user) return;
+
+    if (!notifConfirmed) {
+      toast('아직 정원이 확정되지 않았습니다.');
+      return;
+    }
+
+    const categoryStr = category as string;
+    const newEnabled = !notifEnabled;
+
+    try {
+      const res = await fetch('/api/notifications/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({ category: categoryStr, enabled: newEnabled }),
+      });
+
+      if (res.ok) {
+        onNotifToggle?.(categoryStr, newEnabled);  // 부모 notifStatus.prefs 업데이트
+      } else {
+        const data = await res.json();
+        toast(data.message ?? '알림 설정에 실패했습니다.');
+      }
+    } catch {
+      toast('네트워크 오류가 발생했습니다.');
+    }
   };
 
   // ⭐️ [해결 핵심 포인트] 파서 에러를 막기 위해 JSX 밖에서 클래스 미리 계산
@@ -324,20 +366,33 @@ export function AccordionPanel({
         </div>
 
         <div className="flex items-center gap-1.5 ml-1">
-          <div className="flex gap-0.5">
-            <button onClick={handleNotification1Toggle} className="p-1 rounded-lg transition-colors relative">
-              <Bell
-                className={`w-4 h-4 ${notification1Enabled ? 'text-[#1C5D99] fill-[#1C5D99]' : 'text-gray-400 fill-gray-400'}`}
-              />
-              {!notification1Enabled && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-5 h-[1.5px] bg-gray-400 -rotate-45" />
-                </div>
-              )}
-            </button>
-          </div>
+          {/* 알림 벨: 레슨 제외 모든 패널 + 로그인 상태에서만 표시 */}
+          {title !== '레슨' && user && (
+            <>
+              <div className="flex gap-0.5">
+                <button
+                  onClick={handleNotification1Toggle}
+                  className={`p-1 rounded-lg transition-colors relative ${
+                    notifConfirmed ? 'hover:bg-gray-100' : 'cursor-default opacity-50'
+                  }`}
+                  aria-label={notifEnabled ? '알림 끄기' : '알림 켜기'}
+                  title={notifConfirmed ? undefined : '정원 확정 후 설정 가능'}
+                >
+                  <Bell
+                    className={`w-4 h-4 ${notifEnabled ? 'text-[#1C5D99] fill-[#1C5D99]' : 'text-gray-400 fill-gray-400'}`}
+                  />
+                  {/* 알림 꺼짐: 사선 표시 */}
+                  {!notifEnabled && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-5 h-[1.5px] bg-gray-400 -rotate-45" />
+                    </div>
+                  )}
+                </button>
+              </div>
 
-          <div className="w-px h-7 bg-gray-300" />
+              <div className="w-px h-7 bg-gray-300" />
+            </>
+          )}
 
           <div className="flex flex-col items-end ml-1.5">
             <span className="text-[8px] leading-tight text-gray-500">{statusText}</span>

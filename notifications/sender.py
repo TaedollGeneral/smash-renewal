@@ -183,14 +183,14 @@ def enqueue_push_to_all(
         )
 
 
-def enqueue_push_to_day_subscribers(
-    day: str,
+def enqueue_push_to_category_subscribers(
+    category: str,
     title: str,
     body: str,
     icon: str = "/icons/icon-192x192.png",
     extra_data: dict[str, Any] | None = None,
 ) -> None:
-    """특정 요일(wed/fri) 알림 구독자 전원에게 푸시를 큐잉한다.
+    """특정 카테고리 알림 구독자 전원에게 푸시를 큐잉한다.
 
     처리 흐름:
       1) In-memory category_subscribers에서 대상 user_id 목록 추출 (DB I/O 없음)
@@ -198,14 +198,14 @@ def enqueue_push_to_day_subscribers(
       3) 큐에 추가 (실제 발송은 워커 스레드에서 처리)
 
     Args:
-        day:        "wed" 또는 "fri"
+        category:   NOTIF_CATEGORIES 중 하나 (예: "WED_REGULAR", "FRI_GUEST")
         title:      알림 제목
         body:       알림 본문
         icon:       알림 아이콘 경로
         extra_data: 추가 데이터
     """
-    from notifications.store import get_subscribers_for_day
-    for uid in get_subscribers_for_day(day):
+    from notifications.store import get_subscribers_for_category
+    for uid in get_subscribers_for_category(category):
         enqueue_push_to_user(uid, title, body, icon, extra_data)
 
 

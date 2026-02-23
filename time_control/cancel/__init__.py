@@ -147,12 +147,12 @@ def _check_and_notify_vacancy(category: str, cancel_pos: int) -> None:
     if cancel_pos >= effective_capacity:
         return  # 대기 순번이었음 → 실제 빈자리 없음
 
-    # 빈자리 발생! 해당 요일 알림 구독자에게 타겟 발송 큐잉 (Non-blocking)
-    from notifications.sender import enqueue_push_to_day_subscribers
+    # 빈자리 발생! 해당 카테고리 알림 구독자에게 타겟 발송 큐잉 (Non-blocking)
+    from notifications.sender import enqueue_push_to_category_subscribers
 
     _MESSAGES = {
-        "wed": ("수요일 빈자리 알림", "수요일 운동에 빈자리가 생겼습니다!"),
-        "fri": ("금요일 빈자리 알림", "금요일 운동에 빈자리가 생겼습니다!"),
+        "WED_REGULAR": ("수요일 빈자리 알림", "수요일 운동에 빈자리가 생겼습니다!"),
+        "FRI_REGULAR": ("금요일 빈자리 알림", "금요일 운동에 빈자리가 생겼습니다!"),
     }
-    title, body = _MESSAGES[day_eng]
-    enqueue_push_to_day_subscribers(day_eng, title=title, body=body)
+    title, body = _MESSAGES[category]
+    enqueue_push_to_category_subscribers(category, title=title, body=body)
