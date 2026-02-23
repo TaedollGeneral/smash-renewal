@@ -41,6 +41,13 @@ load_from_backup()
 start_background_saver()
 start_reset_scheduler(KST)
 
+# 푸시 알림: SQLite 테이블 초기화 + 백그라운드 발송 워커 시작
+from notifications.store import init_db as init_push_db
+from notifications.sender import start_push_worker
+
+init_push_db()
+start_push_worker()
+
 if __name__ == '__main__':
     # 127.0.0.1로 설정하여 Nginx를 통해서만 접근 가능하도록 제한
     app.run(host='127.0.0.1', port=5000)
