@@ -93,7 +93,7 @@ def subscribe():
 @notif_bp.route('/api/notifications/toggle', methods=['POST'])
 @token_required
 def toggle():
-    """요일별 카테고리 알림을 켜거나 끈다 (In-Memory 업데이트).
+    """카테고리별 알림을 켜거나 끈다 (In-Memory 업데이트).
 
     Rate Limit: 동일 사용자가 60초 안에 10회 초과 요청 시 429 반환.
     전제 조건:  해당 요일의 정원이 확정된 상태(is_*_confirmed == True)여야 한다.
@@ -103,11 +103,11 @@ def toggle():
         Authorization: Bearer <JWT>
 
     Request Body (JSON):
-        day     (str):  "wed" 또는 "fri"
-        enabled (bool): true(알림 켜기) / false(알림 끄기)
+        category (str):  NOTIF_CATEGORIES 중 하나 (예: "WED_REGULAR", "FRI_GUEST")
+        enabled  (bool): true(알림 켜기) / false(알림 끄기)
 
     Responses:
-        200: 설정 변경 성공  { message, day, enabled }
+        200: 설정 변경 성공  { message, category, enabled }
         400: 필드 누락 / 잘못된 형식
         401: 토큰 없음 / 만료
         409: 해당 요일 정원 미확정 (변경 거부)
@@ -123,33 +123,33 @@ def toggle():
     if not body:
         return jsonify({'message': '요청 데이터가 없습니다.'}), 400
 
-    day     = body.get('day')
-    enabled = body.get('enabled')
+    category = body.get('category')
+    enabled  = body.get('enabled')
 
     # ② 입력값 검증
-    if day not in ('wed', 'fri'):
-        return jsonify({'message': 'day는 "wed" 또는 "fri"이어야 합니다.'}), 400
+    if category not in _store.NOTIF_CATEGORIES:
+        return jsonify({'message': 'category 값이 올바르지 않습니다.'}), 400
 
     if not isinstance(enabled, bool):
         return jsonify({'message': 'enabled는 true 또는 false (boolean)이어야 합니다.'}), 400
 
     # ③ 요일별 확정 상태 검사 (모듈 참조로 최신값 읽기)
     #    정원이 확정되지 않은 상태(False)에서는 변경 거부
-    confirmed = _store.is_wed_confirmed if day == 'wed' else _store.is_fri_confirmed
+    is_wed    = category.startswith('WED_')
+    confirmed = _store.is_wed_confirmed if is_wed else _store.is_fri_confirmed
     if not confirmed:
-        day_label = '수요일' if day == 'wed' else '금요일'
+        day_label = '수요일' if is_wed else '금요일'
         return jsonify({
             'message': f'{day_label} 정원이 아직 확정되지 않았습니다. 확정 후 설정할 수 있습니다.'
         }), 409
 
     # ④ In-Memory 업데이트 (DB I/O 없음)
-    _store.set_user_pref(user_id, day, enabled)
+    _store.set_user_pref(user_id, category, enabled)
 
-    action   = '활성화' if enabled else '비활성화'
-    day_label = '수' if day == 'wed' else '금'
+    action = '활성화' if enabled else '비활성화'
     return jsonify({
-        'message':  f'{day_label}요일 알림이 {action}되었습니다.',
-        'day':      day,
+        'message':  f'알림이 {action}되었습니다.',
+        'category': category,
         'enabled':  enabled,
     }), 200
 

@@ -37,13 +37,13 @@ interface AccordionPanelProps {
   // 부모로부터 데이터와 리프레시 함수를 받음
   allApplications: Record<string, BoardEntry[]>;
   onActionSuccess: () => void;
-  // ── 알림 설정 (운동 패널 전용) ──────────────────────────────────────────────
+  // ── 알림 설정 (레슨 제외 모든 패널) ──────────────────────────────────────
   /** 해당 요일의 정원 확정 여부 (False면 토글 비활성, 클릭 시 안내 Toast) */
   notifConfirmed?: boolean;
-  /** 현재 알림 On/Off 상태 (백엔드 /api/notifications/status prefs 값) */
-  notifEnabled?: boolean;
+  /** 카테고리별 알림 On/Off 상태 맵 (백엔드 /api/notifications/status prefs) */
+  notifPrefs?: Record<string, boolean>;
   /** 토글 성공 시 부모 상태 업데이트 콜백 */
-  onNotifToggle?: (day: 'wed' | 'fri', enabled: boolean) => void;
+  onNotifToggle?: (category: string, enabled: boolean) => void;
 }
 
 export function AccordionPanel({
@@ -58,7 +58,7 @@ export function AccordionPanel({
   allApplications,
   onActionSuccess,
   notifConfirmed = false,
-  notifEnabled = false,
+  notifPrefs = {},
   onNotifToggle,
 }: AccordionPanelProps) {
   const { status, statusText, deadlineTimestamp } = categoryState;
@@ -67,6 +67,8 @@ export function AccordionPanel({
   // 현재 패널의 카테고리 판별 후, 부모가 준 전체 데이터에서 내 데이터만 꺼내오기!
   const category = CATEGORY_MAP[`${dayType}_${title}`] ?? Category.WED_REGULAR;
   const applications = allApplications[category] || []; // 렌더링에 사용
+  // 이 패널의 카테고리에 해당하는 알림 On/Off 상태 (부모에서 받은 prefs 맵에서 추출)
+  const notifEnabled = notifPrefs[category as string] ?? false;
 
   const { apply, cancel, adminApply, adminCancel } = useScheduleSystem(category);
 
@@ -241,21 +243,20 @@ export function AccordionPanel({
     }
   };
 
-  // ── 5. 알림 토글 핸들러 (운동 패널 전용) ─────────────────────────
+  // ── 5. 알림 토글 핸들러 (레슨 제외 모든 패널) ───────────────────
   // - 정원 미확정(notifConfirmed=false): Toast 안내 후 종료
   // - 정원 확정(notifConfirmed=true): API 호출 → 성공 시 부모 상태 업데이트
   const handleNotification1Toggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // 벨 버튼은 운동 패널 + 로그인 상태에서만 활성
-    if (title !== '운동' || !user) return;
+    if (!user) return;
 
     if (!notifConfirmed) {
       toast('아직 정원이 확정되지 않았습니다.');
       return;
     }
 
-    const day: 'wed' | 'fri' = dayType === '수' ? 'wed' : 'fri';
+    const categoryStr = category as string;
     const newEnabled = !notifEnabled;
 
     try {
@@ -265,11 +266,11 @@ export function AccordionPanel({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${user.token}`,
         },
-        body: JSON.stringify({ day, enabled: newEnabled }),
+        body: JSON.stringify({ category: categoryStr, enabled: newEnabled }),
       });
 
       if (res.ok) {
-        onNotifToggle?.(day, newEnabled);  // 부모 notifStatus.prefs 업데이트
+        onNotifToggle?.(categoryStr, newEnabled);  // 부모 notifStatus.prefs 업데이트
       } else {
         const data = await res.json();
         toast(data.message ?? '알림 설정에 실패했습니다.');
@@ -365,8 +366,8 @@ export function AccordionPanel({
         </div>
 
         <div className="flex items-center gap-1.5 ml-1">
-          {/* 알림 벨: 운동 패널 + 로그인 상태에서만 표시 */}
-          {title === '운동' && user && (
+          {/* 알림 벨: 레슨 제외 모든 패널 + 로그인 상태에서만 표시 */}
+          {title !== '레슨' && user && (
             <>
               <div className="flex gap-0.5">
                 <button

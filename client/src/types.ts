@@ -44,8 +44,5 @@ export interface CategoryState {
 export interface NotifStatus {
   wed_confirmed: boolean;  // 수요일 정원 확정 여부
   fri_confirmed: boolean;  // 금요일 정원 확정 여부
-  prefs: {
-    wed: boolean;          // 본인 수요일 알림 설정
-    fri: boolean;          // 본인 금요일 알림 설정
-  };
+  prefs: Record<string, boolean>;  // 카테고리별 알림 설정 (예: {"WED_REGULAR": true, ...})
 }

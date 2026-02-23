@@ -57,9 +57,9 @@ function App() {
   }, [user]);
 
   // 알림 On/Off 토글 성공 시 부모 상태 업데이트 (AccordionPanel → App)
-  const handleNotifToggle = useCallback((day: 'wed' | 'fri', enabled: boolean) => {
+  const handleNotifToggle = useCallback((category: string, enabled: boolean) => {
     setNotifStatus((prev) =>
-      prev ? { ...prev, prefs: { ...prev.prefs, [day]: enabled } } : null
+      prev ? { ...prev, prefs: { ...prev.prefs, [category]: enabled } } : null
     );
   }, []);
 
@@ -460,7 +460,7 @@ function App() {
               allApplications={allApplications}
               onActionSuccess={fetchAllBoards}
               notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
-              notifEnabled={currentDay === '수' ? (notifStatus?.prefs.wed ?? false) : (notifStatus?.prefs.fri ?? false)}
+              notifPrefs={notifStatus?.prefs ?? {}}
               onNotifToggle={handleNotifToggle}
             />
           ))}
