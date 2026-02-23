@@ -149,6 +149,40 @@ def enqueue_push_to_user(
         )
 
 
+def enqueue_push_to_all(
+    title: str,
+    body: str,
+    icon: str = "/icons/icon-192x192.png",
+    extra_data: dict[str, Any] | None = None,
+) -> None:
+    """push_subscriptions 테이블의 모든 구독자에게 푸시를 큐잉한다.
+
+    정원 확정처럼 구독 여부와 관계없이 등록된 모든 기기로 알림을 보낼 때 사용.
+
+    처리 흐름:
+      1) SQLite에서 모든 구독 정보를 1회 조회 (전체 SELECT)
+      2) 각 구독을 enqueue_push()로 큐에 추가 (실제 발송은 워커 스레드)
+
+    Args:
+        title:      알림 제목
+        body:       알림 본문
+        icon:       알림 아이콘 경로
+        extra_data: Service Worker에 전달할 추가 데이터
+    """
+    from notifications.store import get_all_subscriptions
+    for sub in get_all_subscriptions():
+        enqueue_push(
+            user_id=sub["user_id"],
+            endpoint=sub["endpoint"],
+            p256dh=sub["p256dh"],
+            auth=sub["auth"],
+            title=title,
+            body=body,
+            icon=icon,
+            extra_data=extra_data,
+        )
+
+
 def enqueue_push_to_day_subscribers(
     day: str,
     title: str,
