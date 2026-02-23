@@ -25,6 +25,9 @@ app.register_blueprint(application_bp)
 from admin.capacity.routes import capacity_bp  # 임원진 정원 확정 API
 app.register_blueprint(capacity_bp)
 
+from notifications.routes import notif_bp       # 푸시 알림 API
+app.register_blueprint(notif_bp)
+
 # --- [인메모리 초기화] ---
 # DB 마이그레이션: token_version 컬럼 추가 (없는 경우만)
 migrate_token_version_column()
