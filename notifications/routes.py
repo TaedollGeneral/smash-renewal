@@ -6,6 +6,7 @@
 #     프론트에서 전달된 body의 user_id는 절대 사용하지 않는다
 #
 # 엔드포인트:
+#   GET  /api/vapid-public-key         — VAPID 공개 키 반환 (인증 불필요)
 #   POST /api/notifications/subscribe  — Push 구독 정보 저장 (SQLite Upsert)
 #   POST /api/notifications/toggle     — 요일별 알림 On/Off (In-Memory + Rate Limit)
 #   GET  /api/notifications/status     — 확정 상태 + 본인 알림 설정 조회
@@ -16,6 +17,23 @@ from smash_db.auth import token_required
 import notifications.store as _store   # 모듈 참조: 전역 변수 최신값을 항상 반영
 
 notif_bp = Blueprint('notifications', __name__)
+
+
+# ── GET /api/vapid-public-key ─────────────────────────────────────────────────
+
+@notif_bp.route('/api/vapid-public-key', methods=['GET'])
+def vapid_public_key():
+    """VAPID 공개 키를 반환한다 (인증 불필요 — 공개 정보).
+
+    프론트엔드가 PushManager.subscribe() 시 applicationServerKey로 사용한다.
+    VAPID 공개 키는 암호학적으로 공개(public)이므로 인증 없이 노출해도 안전하다.
+
+    Responses:
+        200: { publicKey: string }  — VAPID_PUBLIC_KEY 환경변수 값 (미설정 시 빈 문자열)
+    """
+    import os
+    key = os.environ.get('VAPID_PUBLIC_KEY', '')
+    return jsonify({'publicKey': key}), 200
 
 
 # ── POST /api/notifications/subscribe ────────────────────────────────────────
