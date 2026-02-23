@@ -227,6 +227,24 @@ def get_subscribers_for_category(category: str) -> list[str]:
                 if prefs.get(category, False)]
 
 
+def reset_weekly_state() -> None:
+    """주간 초기화: 카테고리 구독 설정과 정원 확정 상태를 모두 리셋한다.
+
+    매주 토요일 00:00 KST에 time_control/scheduler_logic.py의 weekly-reset
+    스레드에서 호출된다. notifications/scheduler.py → 이 함수 순으로 실행된다.
+
+    초기화 대상:
+      - category_subscribers → {} (알림 On/Off 설정 전부 삭제)
+        push_subscriptions SQLite 테이블은 건드리지 않는다 (기기 등록 정보 보존).
+      - is_wed_confirmed / is_fri_confirmed → False
+        → 프론트엔드의 벨 버튼이 다시 비활성(disabled) 상태로 돌아간다.
+    """
+    with _mem_lock:
+        category_subscribers.clear()
+    set_wed_confirmed(False)
+    set_fri_confirmed(False)
+
+
 def set_wed_confirmed(value: bool) -> None:
     """수요일 정원 확정 상태를 변경한다.
 
