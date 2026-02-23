@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import type { User } from '@/types';
 
 interface CapacitySettingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  user: User | null;
   currentCapacities: {
     수?: number;
     금?: number;
@@ -16,6 +18,7 @@ export function CapacitySettingModal({
   onClose,
   currentCapacities,
   onSave,
+  user,
 }: CapacitySettingModalProps) {
   const [currentDay, setCurrentDay] = useState<'수' | '금'>('수');
   const [wednesday, setWednesday] = useState('');
@@ -30,7 +33,12 @@ export function CapacitySettingModal({
 
   if (!isOpen) return null;
 
+  const isManager = user?.role === 'manager';
   const handleSubmit = (e: React.FormEvent) => {
+    if (!isManager) {
+      window.confirm(`해당 메뉴는 임원진 전용입니다.`);
+      return;
+    }
     e.preventDefault();
 
     const newCapacities: { 수?: number; 금?: number } = { ...currentCapacities };
@@ -81,22 +89,20 @@ export function CapacitySettingModal({
           <button
             type="button"
             onClick={() => setCurrentDay('수')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentDay === '수'
-                ? 'bg-[#1C5D99] text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
-            }`}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${currentDay === '수'
+              ? 'bg-[#1C5D99] text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
+              }`}
           >
             수요일
           </button>
           <button
             type="button"
             onClick={() => setCurrentDay('금')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentDay === '금'
-                ? 'bg-[#1C5D99] text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
-            }`}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${currentDay === '금'
+              ? 'bg-[#1C5D99] text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-[#1C5D99]/20'
+              }`}
           >
             금요일
           </button>

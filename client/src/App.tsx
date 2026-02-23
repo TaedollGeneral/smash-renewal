@@ -3,6 +3,7 @@ import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
 import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState } from '@/types';
+import { Category, fetchBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
 
 
 function App() {
@@ -126,6 +127,40 @@ function App() {
 
   // ─── 1. 정원 fetch (실제 서버 호출) ─────────────────────────────────────────
   // 폴링: 5분에 한번 + soft refresh
+  const [allApplications, setAllApplications] = useState<Record<string, BoardEntry[]>>({});
+
+  // ⭐️ 추가: 모든 게시판 데이터를 한번에 긁어오는 함수
+  const fetchAllBoards = useCallback(async () => {
+    try {
+      const categories = Object.values(Category);
+      const results = await Promise.all(
+        categories.map(async (cat) => {
+          // 에러가 나도 다른 게시판은 뜨도록 에러 핸들링
+          try {
+            const res = await fetchBoardData(cat);
+            return { cat, applications: res.applications };
+          } catch (e) {
+            return { cat, applications: [] };
+          }
+        })
+      );
+
+      const newApps: Record<string, BoardEntry[]> = {};
+      results.forEach(({ cat, applications }) => {
+        newApps[cat] = applications;
+      });
+      setAllApplications(newApps);
+      console.log('[게시판 데이터] 갱신 완료');
+    } catch (error) {
+      console.error('[게시판 데이터] 갱신 실패:', error);
+    }
+  }, []);
+
+  // ⭐️ 초기 1회 로드 (마운트 시)
+  useEffect(() => {
+    fetchAllBoards();
+  }, [fetchAllBoards]);
+
   const fetchCapacities = useCallback(async () => {
     try {
       const response = await fetch(`/api/capacities`);
@@ -157,10 +192,10 @@ function App() {
   // ─── 폴링 인터벌 설정 ───────────────────────────────────────────────────────
   // 게시판 현황 폴링은 각 AccordionPanel 내 useScheduleSystem 훅이 담당
 
-  // 정원: 5분마다
+  // 정원: 10분마다
   useEffect(() => {
     fetchCapacities();
-    const id = setInterval(fetchCapacities, 5 * 60 * 1000);
+    const id = setInterval(fetchCapacities, 10 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchCapacities]);
 
@@ -185,6 +220,7 @@ function App() {
       await Promise.all([
         fetchCapacities(),
         fetchCategoryStates(),
+        fetchAllBoards(),
       ]);
       console.log('[Soft refresh] 완료');
     } catch (error) {
@@ -232,8 +268,9 @@ function App() {
 
       // total 숫자만 추출하여 전송
       const payload: Record<string, number> = {};
-      if (newCapacities.수 != null) payload['수'] = newCapacities.수;
-      if (newCapacities.금 != null) payload['금'] = newCapacities.금;
+      // Number()로 감싸서 문자열이 섞여 있어도 확실하게 숫자로 변환 후 전송
+      if (newCapacities.수 != null) payload['수'] = Number(newCapacities.수);
+      if (newCapacities.금 != null) payload['금'] = Number(newCapacities.금);
 
       const response = await fetch('/api/admin/capacity', {
         method: 'POST',
@@ -274,7 +311,7 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C5D99] relative overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-[#1C5D99] relative">
       {/* Background texture layer */}
       <div className="absolute inset-0 pointer-events-none z-0">
         {/* Subtle noise pattern */}
@@ -378,6 +415,8 @@ function App() {
               capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
               categoryState={categoryStates[currentDay][panel]}
               onCountdownZero={() => handleCountdownZero(currentDay, panel)}
+              allApplications={allApplications}
+              onActionSuccess={fetchAllBoards}
             />
           ))}
         </div>

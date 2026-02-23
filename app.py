@@ -1,7 +1,9 @@
 # /home/ubuntu/smash-renewal/app.py
 import os
 from flask import Flask
-from smash_db.auth import auth_bp  # smash_db 폴더의 인증 로직 가져오기
+
+from dotenv import load_dotenv
+load_dotenv()  # .env 파일을 OS 환경변수로 로드
 
 app = Flask(__name__)
 
@@ -11,7 +13,7 @@ if not app.config['SECRET_KEY']:
     raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
 
 # --- [모듈 등록 구역] ---
-# 앞으로 기능이 추가될 때마다 아래에 register_blueprint를 추가하면 됩니다.
+from smash_db.auth import auth_bp, migrate_token_version_column
 app.register_blueprint(auth_bp)
 
 from time_control.time_handler import time_bp, KST  # 시간 상태 폴링 API
@@ -24,6 +26,9 @@ from admin.capacity.routes import capacity_bp  # 임원진 정원 확정 API
 app.register_blueprint(capacity_bp)
 
 # --- [인메모리 초기화] ---
+# DB 마이그레이션: token_version 컬럼 추가 (없는 경우만)
+migrate_token_version_column()
+
 # 정원 캐시: DB → 메모리 적재 (서버 부팅 시 1회)
 from admin.capacity.store import init_cache as init_capacity_cache
 init_capacity_cache()
