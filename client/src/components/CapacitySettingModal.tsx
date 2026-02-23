@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import type { User } from '@/types';
 
 interface CapacitySettingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  user: User | null;
   currentCapacities: {
     수?: number;
     금?: number;
@@ -16,6 +18,7 @@ export function CapacitySettingModal({
   onClose,
   currentCapacities,
   onSave,
+  user,
 }: CapacitySettingModalProps) {
   const [currentDay, setCurrentDay] = useState<'수' | '금'>('수');
   const [wednesday, setWednesday] = useState('');
@@ -30,7 +33,12 @@ export function CapacitySettingModal({
 
   if (!isOpen) return null;
 
+  const isManager = user?.role === 'manager';
   const handleSubmit = (e: React.FormEvent) => {
+    if (!isManager) {
+      window.confirm(`해당 메뉴는 임원진 전용입니다.`);
+      return;
+    }
     e.preventDefault();
 
     const newCapacities: { 수?: number; 금?: number } = { ...currentCapacities };

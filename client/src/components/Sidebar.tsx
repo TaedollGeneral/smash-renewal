@@ -1,8 +1,11 @@
-import { X, RefreshCw, Lock, LogOut, LogIn, CheckCircle, Calendar } from 'lucide-react';
+import { X, RefreshCw, Lock, LogOut, LogIn, CheckCircle, Calendar, Clock, ScrollText, KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import type { User, Capacity } from '@/types';
 import { PasswordChangeModal } from './PasswordChangeModal';
 import { CapacitySettingModal } from './CapacitySettingModal';
+import { TimelinePanel } from './TimelinePanel';
+import { GuestPolicyPanel } from './GuestPolicyPanel';
+import { ForcePasswordResetModal } from './ForcePasswordResetModal';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,6 +31,9 @@ export function Sidebar({
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [showTimelinePanel, setShowTimelinePanel] = useState(false);
+  const [showGuestPolicyPanel, setShowGuestPolicyPanel] = useState(false);
+  const [showForcePasswordReset, setShowForcePasswordReset] = useState(false);
 
   const handleLogin = () => {
     setShowLoginModal(true);
@@ -79,11 +85,21 @@ export function Sidebar({
     setUser(null);
   };
 
+  const isManager = user?.role === 'manager';
+
   const handleScheduleAdjustment = () => {
+    if (!isManager) {
+      window.confirm(`해당 메뉴는 임원진 전용입니다.`);
+      return;
+    }
     alert('이번주 오픈/마감 조정 페이지로 이동합니다.');
   };
 
   const handleUpdate = async () => {
+    if (!isManager) {
+      window.confirm(`해당 메뉴는 임원진 전용입니다.`);
+      return;
+    }
     if (!('serviceWorker' in navigator)) {
       alert('이 환경은 Service Worker를 지원하지 않습니다.\n하드 새로고침으로 업데이트하세요.');
       return;
@@ -206,12 +222,32 @@ export function Sidebar({
         onClose={() => setShowPasswordModal(false)}
       />
 
+      {/* Timeline Panel */}
+      <TimelinePanel
+        isOpen={showTimelinePanel}
+        onClose={() => setShowTimelinePanel(false)}
+      />
+
+      {/* Guest Policy Panel */}
+      <GuestPolicyPanel
+        isOpen={showGuestPolicyPanel}
+        onClose={() => setShowGuestPolicyPanel(false)}
+      />
+
       {/* Capacity Setting Modal */}
       <CapacitySettingModal
         isOpen={showCapacityModal}
         currentCapacities={{ 수: capacities.수?.total, 금: capacities.금?.total }}
         onSave={onCapacitiesChange}
         onClose={() => setShowCapacityModal(false)}
+        user={user}
+      />
+
+      {/* Force Password Reset Modal */}
+      <ForcePasswordResetModal
+        isOpen={showForcePasswordReset}
+        onClose={() => setShowForcePasswordReset(false)}
+        user={user}
       />
 
       {/* Overlay */}
@@ -270,6 +306,20 @@ export function Sidebar({
                 <Lock className="w-5 h-5 flex-shrink-0" />
                 <span className="text-sm font-semibold">비밀번호 변경</span>
               </button>
+              <button
+                onClick={() => setShowTimelinePanel(true)}
+                className="w-full flex items-center gap-3 p-3 bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
+              >
+                <Clock className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm font-semibold">오픈 및 마감 타임라인</span>
+              </button>
+              <button
+                onClick={() => setShowGuestPolicyPanel(true)}
+                className="w-full flex items-center gap-3 p-3 bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
+              >
+                <ScrollText className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm font-semibold">운영 원칙 안내</span>
+              </button>
             </div>
           </div>
 
@@ -290,6 +340,13 @@ export function Sidebar({
               >
                 <Calendar className="w-5 h-5 flex-shrink-0" />
                 <span className="text-sm font-semibold">이번주 오픈/마감 조정</span>
+              </button>
+              <button
+                onClick={() => setShowForcePasswordReset(true)}
+                className="w-full flex items-center gap-3 p-3 bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
+              >
+                <KeyRound className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm font-semibold">임시 비밀번호 설정</span>
               </button>
               <button
                 onClick={handleUpdate}
