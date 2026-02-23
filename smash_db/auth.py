@@ -10,6 +10,9 @@ import os
 # 인증 전용 블루프린트 생성
 auth_bp = Blueprint('auth', __name__)
 
+# 로그인 브루트포스 방지용 rate limiter (auth 전용, IP 기반)
+from time_control.rate_limiter import rate_limit
+
 # DB 파일 경로 (__file__ 기준 상대 경로로 안정적으로 해석)
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
@@ -100,6 +103,7 @@ def update_password(student_id: str, new_password: str) -> bool:
 
 
 @auth_bp.route('/api/login', methods=['POST'])
+@rate_limit(max_requests=5, window_seconds=30)
 def login():
     data = request.get_json()
     if not data:
@@ -137,6 +141,7 @@ def login():
 
 @auth_bp.route('/api/change-password', methods=['POST'])
 @token_required
+@rate_limit(max_requests=3, window_seconds=60)
 def change_password():
     """현재 비밀번호 검증 후 새 비밀번호로 갱신한다.
 
@@ -162,6 +167,9 @@ def change_password():
 
     if not current_password or not new_password:
         return jsonify({'message': 'current_password와 new_password를 모두 입력해주세요.'}), 400
+
+    if len(new_password) < 4:
+        return jsonify({'message': '새 비밀번호는 4자 이상이어야 합니다.'}), 400
 
     student_id = request.current_user['id']
 

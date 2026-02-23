@@ -2,6 +2,11 @@
 data/*.csv
 data/*.xlsx
 
+# 회원 DB 및 민감 데이터 파일 절대 추적 금지
+smash_db/*.csv
+smash_db/*.db
+smash_db/output.log
+
 # 설정 및 환경 변수 파일 제외
 .env
 .env.*
