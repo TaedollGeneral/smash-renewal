@@ -272,10 +272,12 @@ export function Sidebar({
           ) : (
             <button
               onClick={handleLogin}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#1C5D99] rounded-lg hover:bg-white/90 active:bg-white/80 transition-colors font-bold shadow-md"
+              className="flex items-center gap-2.5 pl-1.5 pr-5 py-1.5 bg-white rounded-full hover:bg-white/95 active:scale-95 transition-all shadow-lg hover:shadow-xl"
             >
-              <LogIn className="w-4 h-4" />
-              로그인
+              <div className="w-8 h-8 rounded-full bg-[#1C5D99] flex items-center justify-center flex-shrink-0">
+                <LogIn className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[#1C5D99] text-sm font-bold tracking-wide">로그인</span>
             </button>
           )}
           <button
