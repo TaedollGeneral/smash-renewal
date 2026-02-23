@@ -79,7 +79,15 @@ def token_required(f):
         # 토큰 버전 검증: 비밀번호 변경 후 구 토큰 즉시 차단
         user_id = payload.get('id')
         current_ver = _get_token_version(user_id)
-        if current_ver is None or payload.get('ver') != current_ver:
+        if current_ver is None:
+            return jsonify({'message': '세션이 만료되었습니다. 다시 로그인해주세요.'}), 401
+
+        token_ver = payload.get('ver')
+        if token_ver is None:
+            # ver 필드 없는 구 토큰: 아직 비밀번호 변경이 없는 경우(token_version=1)만 허용
+            if current_ver != 1:
+                return jsonify({'message': '세션이 만료되었습니다. 다시 로그인해주세요.'}), 401
+        elif token_ver != current_ver:
             return jsonify({'message': '세션이 만료되었습니다. 다시 로그인해주세요.'}), 401
 
         request.current_user = {
