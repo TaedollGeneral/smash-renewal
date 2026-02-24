@@ -351,123 +351,121 @@ function App() {
 
   return (
     <>
-    {/* Sonner 토스트 컨테이너 — AccordionPanel의 toast() 호출이 여기서 렌더됨 */}
-    <Toaster position="top-center" richColors />
-    <div className="flex flex-col h-[100dvh] bg-[#1C5D99] relative">
-      {/* Background texture layer */}
-      <div className="absolute inset-0 pointer-events-none z-0">
-        {/* Subtle noise pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'repeat',
-          }}
+      {/* Sonner 토스트 컨테이너 — AccordionPanel의 toast() 호출이 여기서 렌더됨 */}
+      <Toaster position="top-center" richColors />
+      <div className="flex flex-col h-[100dvh] bg-[#1C5D99] relative">
+        {/* Background texture layer */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          {/* 🌟 1. 배경에 은은하게 퍼지는 빛 덩어리 추가 (강한 블러 적용) */}
+          {/* 좌측 상단 밝은 하늘색 빛 */}
+          <div className="absolute -top-20 -left-20 w-96 h-96 bg-[#4F86C6] rounded-full mix-blend-screen filter blur-[100px] opacity-60 animate-pulse" />
+          {/* 우측 하단 에메랄드/흰색 빛 */}
+          <div className="absolute -bottom-32 -right-32 w-[30rem] h-[30rem] bg-[#89CFF0] rounded-full mix-blend-screen filter blur-[120px] opacity-40" />
+          {/* 중앙 부근의 옅은 보라색/남색 빛 (선택) */}
+          <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-[#2A4B7C] rounded-full mix-blend-screen filter blur-[90px] opacity-50" />
+          {/* Subtle noise pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.3]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'repeat',
+            }}
+          />
+
+          {/* Subtle gradient from top (darker below header) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100px, transparent 200px)',
+            }}
+          />
+        </div>
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          user={user}
+          setUser={setUser}
+          capacities={capacities}
+          onCapacitiesChange={handleCapacitiesChange}
         />
 
-        {/* Dot pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.8) 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-          }}
+        <Header
+          currentDay={currentDay}
+          onDayChange={setCurrentDay}
+          onMenuClick={() => setIsSidebarOpen(true)}
+          user={user}
         />
 
-        {/* Subtle gradient from top (darker below header) */}
+        {/* Main Content - Scrollable */}
         <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100px, transparent 200px)',
-          }}
-        />
-      </div>
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        user={user}
-        setUser={setUser}
-        capacities={capacities}
-        onCapacitiesChange={handleCapacitiesChange}
-      />
-
-      <Header
-        currentDay={currentDay}
-        onDayChange={setCurrentDay}
-        onMenuClick={() => setIsSidebarOpen(true)}
-        user={user}
-      />
-
-      {/* Main Content - Scrollable */}
-      <div
-        className="flex-1 overflow-y-auto relative"
-        ref={scrollContainerRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Pull-to-refresh indicator */}
-        <div
-          className="absolute top-0 left-0 right-0 flex items-center justify-center overflow-hidden transition-all duration-200"
-          style={{
-            height: `${pullDistance}px`,
-            opacity: isPulling || isRefreshing ? 1 : 0,
-          }}
+          className="flex-1 overflow-y-auto relative"
+          ref={scrollContainerRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          <div className="flex items-center gap-2 text-white">
-            <svg
-              className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          {/* Pull-to-refresh indicator */}
+          <div
+            className="absolute top-0 left-0 right-0 flex items-center justify-center overflow-hidden transition-all duration-200"
+            style={{
+              height: `${pullDistance}px`,
+              opacity: isPulling || isRefreshing ? 1 : 0,
+            }}
+          >
+            <div className="flex items-center gap-2 text-white">
+              <svg
+                className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              <span className="text-sm font-medium">
+                {isRefreshing
+                  ? '새로고침 중...'
+                  : pullDistance > 60
+                    ? '놓아서 새로고침'
+                    : '아래로 당겨서 새로고침'}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="flex flex-col gap-2 p-2 pb-20"
+            style={{
+              transform: `translateY(${isPulling || isRefreshing ? pullDistance : 0}px)`,
+              transition: isPulling ? 'none' : 'transform 0.3s ease-out',
+            }}
+          >
+            {accordionPanels[currentDay].map((panel) => (
+              <AccordionPanel
+                key={`${currentDay}-${panel}`}
+                title={panel}
+                isExpanded={expandedPanels.has(panel)}
+                onToggle={() => togglePanel(panel)}
+                dayType={currentDay}
+                user={user}
+                capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
+                categoryState={categoryStates[currentDay][panel]}
+                onCountdownZero={() => handleCountdownZero(currentDay, panel)}
+                allApplications={allApplications}
+                onActionSuccess={fetchAllBoards}
+                notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
+                notifPrefs={notifStatus?.prefs ?? {}}
+                onNotifToggle={handleNotifToggle}
               />
-            </svg>
-            <span className="text-sm font-medium">
-              {isRefreshing
-                ? '새로고침 중...'
-                : pullDistance > 60
-                  ? '놓아서 새로고침'
-                  : '아래로 당겨서 새로고침'}
-            </span>
+            ))}
           </div>
         </div>
 
-        <div
-          className="flex flex-col gap-2 p-2 pb-20"
-          style={{
-            transform: `translateY(${isPulling || isRefreshing ? pullDistance : 0}px)`,
-            transition: isPulling ? 'none' : 'transform 0.3s ease-out',
-          }}
-        >
-          {accordionPanels[currentDay].map((panel) => (
-            <AccordionPanel
-              key={`${currentDay}-${panel}`}
-              title={panel}
-              isExpanded={expandedPanels.has(panel)}
-              onToggle={() => togglePanel(panel)}
-              dayType={currentDay}
-              user={user}
-              capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
-              categoryState={categoryStates[currentDay][panel]}
-              onCountdownZero={() => handleCountdownZero(currentDay, panel)}
-              allApplications={allApplications}
-              onActionSuccess={fetchAllBoards}
-              notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
-              notifPrefs={notifStatus?.prefs ?? {}}
-              onNotifToggle={handleNotifToggle}
-            />
-          ))}
-        </div>
       </div>
-
-    </div>
     </>
   );
 }

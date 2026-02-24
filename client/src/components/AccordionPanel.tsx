@@ -97,11 +97,11 @@ export function AccordionPanel({
   // 상태에 따른 카운트다운 색상 결정
   const getCountdownColor = () => {
     switch (status) {
-      case 'before-open': return 'text-blue-500';
-      case 'open': return 'text-green-400';
-      case 'cancel-period': return 'text-red-400';
-      case 'waiting': return 'text-gray-400';
-      default: return 'text-green-400';
+      case 'before-open': return 'text-blue-700';
+      case 'open': return 'text-green-600';
+      case 'cancel-period': return 'text-red-600';
+      case 'waiting': return 'text-gray-600';
+      default: return 'text-green-600';
     }
   };
 
@@ -286,8 +286,7 @@ export function AccordionPanel({
 
   // ── 화면 렌더링 (JSX) ─────────────────────────────────────────
   return (
-    <div className="bg-[#FFFFFF] shadow-md rounded-sm overflow-hidden">
-      {/* 관리자 모달 */}
+    <div className="group relative bg-white/60 backdrop-blur-md border border-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-sm overflow-hidden transition-all duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.1)]">
       {isManager && (
         <AdminActionModal
           isOpen={showAdminModal}
@@ -347,7 +346,7 @@ export function AccordionPanel({
       {/* Accordion Header */}
       <div
         onClick={onToggle}
-        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-[#F5F5F5] transition-colors cursor-pointer"
+        className="w-full px-2 py-2.5 flex items-center justify-between hover:bg-white/20 transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
           <ChevronDown
@@ -372,9 +371,8 @@ export function AccordionPanel({
               <div className="flex gap-0.5">
                 <button
                   onClick={handleNotification1Toggle}
-                  className={`p-1 rounded-lg transition-colors relative ${
-                    notifConfirmed ? 'hover:bg-gray-100' : 'cursor-default opacity-50'
-                  }`}
+                  className={`p-1 rounded-lg transition-colors relative ${notifConfirmed ? 'hover:bg-gray-100' : 'cursor-default opacity-50'
+                    }`}
                   aria-label={notifEnabled ? '알림 끄기' : '알림 켜기'}
                   title={notifConfirmed ? undefined : '정원 확정 후 설정 가능'}
                 >
@@ -395,7 +393,7 @@ export function AccordionPanel({
           )}
 
           <div className="flex flex-col items-end ml-1.5">
-            <span className="text-[8px] leading-tight text-gray-500">{statusText}</span>
+            <span className="text-[9px] leading-tight text-gray-700">{statusText}</span>
             <span className={`text-sm font-bold tabular-nums leading-tight ${getCountdownColor()}`}>
               {formatTime(remainingMilliseconds)}
             </span>
