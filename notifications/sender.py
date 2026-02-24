@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests
-from pywebpush import WebPusher, WebPushException
+from pywebpush import webpush, WebPushException
 
 # [수정됨] 존재하지 않는 DefaultCookiePolicy 관련 임포트 삭제
 # from http.cookiejar import DefaultCookiePolicy
@@ -264,18 +264,16 @@ def _send_one(item: dict[str, Any]) -> None:
     encoded_payload = json.dumps(item["payload"], ensure_ascii=False)
 
     try:
-        # [정석적인 방법] WebPusher 객체를 직접 생성하면서 공유 Session 주입
-        pusher = WebPusher(
+        # webpush()는 requests_session, vapid_private_key, vapid_claims를
+        # 모두 올바르게 처리하는 단일 호출 API.
+        # requests_session에 공유 Session을 주입하여 커넥션 풀을 재사용한다.
+        webpush(
             subscription_info=subscription_info,
-            requests_session=_session
-        )
-        
-        # 주입된 세션을 바탕으로 발송
-        pusher.send(
             data=encoded_payload,
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims=_build_vapid_claims(endpoint),
-            timeout=10
+            requests_session=_session,
+            timeout=10,
         )
     except WebPushException as exc:
         resp = getattr(exc, "response", None)
