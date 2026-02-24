@@ -17,7 +17,8 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPusher, WebPushException
+from http.cookiejar import DefaultCookiePolicy
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,23 @@ _push_queue: queue.Queue = queue.Queue()
 # ── requests.Session (커넥션 풀 재사용) ───────────────────────────────────────
 # 워커 스레드 단독 접근 → 별도 Lock 불필요
 # pywebpush.webpush()의 requests_session 파라미터로 주입하여 커넥션을 재사용한다.
-_session: requests.Session = requests.Session()
+
+def _create_session() -> requests.Session:
+    session = requests.Session()
+    
+    # [핵심] 푸시 알림에는 쿠키가 필요 없으므로, 모든 쿠키 저장을 무시하는 정책 적용
+    session.cookies.set_policy(DefaultCookiePolicy(set_cookie=False))
+    
+    adapter = requests.adapters.HTTPAdapter(
+        pool_connections=4,
+        pool_maxsize=10,
+        max_retries=1,
+    )
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+_session: requests.Session = _create_session()
 
 # HTTPAdapter: 1GB 서버 환경에 맞게 pool_connections/pool_maxsize 보수적으로 설정
 _adapter = requests.adapters.HTTPAdapter(
@@ -245,13 +262,18 @@ def _send_one(item: dict[str, Any]) -> None:
     encoded_payload = json.dumps(item["payload"], ensure_ascii=False)
 
     try:
-        webpush(
+        # [정석적인 방법] WebPusher 객체를 직접 생성하면서 공유 Session 주입
+        pusher = WebPusher(
             subscription_info=subscription_info,
+            requests_session=_session
+        )
+        
+        # 주입된 세션을 바탕으로 발송
+        pusher.send(
             data=encoded_payload,
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims=_build_vapid_claims(endpoint),
-            requests_session=_session,   # 커넥션 풀 재사용
-            timeout=10,
+            timeout=10
         )
     except WebPushException as exc:
         resp = getattr(exc, "response", None)
