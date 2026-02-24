@@ -18,7 +18,9 @@ from urllib.parse import urlparse
 
 import requests
 from pywebpush import WebPusher, WebPushException
-from http.cookiejar import DefaultCookiePolicy
+
+# [수정됨] 존재하지 않는 DefaultCookiePolicy 관련 임포트 삭제
+# from http.cookiejar import DefaultCookiePolicy
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +70,8 @@ _push_queue: queue.Queue = queue.Queue()
 def _create_session() -> requests.Session:
     session = requests.Session()
     
-    # [핵심] 푸시 알림에는 쿠키가 필요 없으므로, 모든 쿠키 저장을 무시하는 정책 적용
-    session.cookies.set_policy(DefaultCookiePolicy(set_cookie=False))
+    # [수정됨] 푸시 알림에는 쿠키가 필요 없으므로, 에러를 유발하던 쿠키 설정 코드 삭제
+    # session.cookies.set_policy(DefaultCookiePolicy(set_cookie=False))
     
     adapter = requests.adapters.HTTPAdapter(
         pool_connections=4,

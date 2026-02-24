@@ -270,3 +270,118 @@
 127.0.0.1 - - [24/Feb/2026 05:42:01] "GET /api/capacities HTTP/1.0" 200 -
 127.0.0.1 - - [24/Feb/2026 05:42:05] "GET /api/category-states HTTP/1.0" 200 -
 127.0.0.1 - - [24/Feb/2026 05:47:05] "GET /api/category-states HTTP/1.0" 200 -
+Traceback (most recent call last):
+  File "/home/ubuntu/smash-renewal/app.py", line 25, in <module>
+    from admin.capacity.routes import capacity_bp  # 임원진 정원 확정 API
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/smash-renewal/admin/capacity/routes.py", line 8, in <module>
+    from notifications.sender import enqueue_push_to_all
+  File "/home/ubuntu/smash-renewal/notifications/sender.py", line 83, in <module>
+    _session: requests.Session = _create_session()
+                                 ^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/smash-renewal/notifications/sender.py", line 72, in _create_session
+    session.cookies.set_policy(DefaultCookiePolicy(set_cookie=False))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: DefaultCookiePolicy.__init__() got an unexpected keyword argument 'set_cookie'
+Traceback (most recent call last):
+  File "/home/ubuntu/smash-renewal/app.py", line 25, in <module>
+    from admin.capacity.routes import capacity_bp  # 임원진 정원 확정 API
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/smash-renewal/admin/capacity/routes.py", line 8, in <module>
+    from notifications.sender import enqueue_push_to_all
+  File "/home/ubuntu/smash-renewal/notifications/sender.py", line 83, in <module>
+    _session: requests.Session = _create_session()
+                                 ^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/smash-renewal/notifications/sender.py", line 72, in _create_session
+    session.cookies.set_policy(DefaultCookiePolicy(set_cookie=False))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: DefaultCookiePolicy.__init__() got an unexpected keyword argument 'set_cookie'
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [24/Feb/2026 06:36:55] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:36:55] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/notifications/status HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:13] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:29] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:29] "GET /api/notifications/status HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:29] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:30] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:37:53] "POST /api/admin/capacity HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:02] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:13] "[33mPOST /api/cancel HTTP/1.0[0m" 404 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:24] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/notifications/status HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:26] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:38:28] "POST /api/notifications/toggle HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:04] "POST /api/admin/cancel HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:05] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/capacities HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:28] "GET /api/category-states HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:47] "POST /api/login HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:47] "GET /api/notifications/status HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:54] "POST /api/notifications/toggle HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:39:55] "POST /api/notifications/toggle HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:31] "POST /api/login HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:31] "GET /api/notifications/status HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:34] "POST /api/cancel HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=WED_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=FRI_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=FRI_GUEST HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=WED_LEFTOVER HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=WED_LESSON HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=FRI_REGULAR HTTP/1.0" 200 -
+127.0.0.1 - - [24/Feb/2026 06:40:35] "GET /api/board-data?category=WED_GUEST HTTP/1.0" 200 -
