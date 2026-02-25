@@ -54,10 +54,13 @@ export function BoardTable({ type, applications = [], highlightCount }: BoardTab
   const fmtTime = (entry: BoardEntry) => formatTimestamp(entry.timestamp * 1000);
 
   const renderRows = () => {
-    const hi = (index: number) =>
-      highlightCount != null && index < highlightCount
+    const hi = (index: number) => {
+      const limit = type === '레슨' ? 11 : highlightCount;
+
+      return limit != null && index < limit
         ? 'text-green-600'
         : 'text-white';
+    };
 
     switch (type) {
       case '운동':
@@ -84,14 +87,26 @@ export function BoardTable({ type, applications = [], highlightCount }: BoardTab
           );
         });
       case '레슨':
-        return applications.map((entry, index) => (
-          <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
-            <td className="py-2 pl-2 pr-1 text-center text-xs text-white sticky left-0 z-10 bg-inherit">{index + 1}</td>
-            <td className="py-2 px-2 text-center text-xs text-white">{entry.name}</td>
-            <td className="py-2 px-1 text-center text-xs text-white">{entry.guest_name ?? '-'}</td>
-            <td className="py-2 px-1 text-center text-xs text-gray-400 tabular-nums">{fmtTime(entry)}</td>
-          </tr>
-        ));
+        return applications.map((entry, index) => {
+          const textColor = hi(index); // 추가
+
+          let lessonTime = '-';
+          if (index < 11) {
+            const startMinutes = 18 * 60; // 18시를 분 단위로 변환 (1080분)
+            const currentMinutes = startMinutes + index * 15; // 인덱스당 15분씩 추가
+            const h = Math.floor(currentMinutes / 60);
+            const m = currentMinutes % 60;
+            lessonTime = `${h}:${m.toString().padStart(2, '0')}`; // "18:00", "18:15" 형태로 포맷팅
+          }
+          return (
+            <tr key={entry.user_id} className={`border-b border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors ${index % 2 === 0 ? 'bg-[#272727]' : 'bg-[#2e2e2e]'}`}>
+              <td className={`py-2 pl-2 pr-1 text-center text-xs sticky left-0 z-10 bg-inherit ${textColor}`}>{index + 1}</td>
+              <td className={`py-2 px-2 text-center text-xs ${textColor}`}>{entry.name}</td>
+              <td className={`py-2 px-1 text-center text-xs ${textColor}`}>{lessonTime}</td>
+              <td className={`py-2 px-1 text-center text-xs tabular-nums ${textColor}`}>{fmtTime(entry)}</td>
+            </tr>
+          );
+        });
       case '잔여석':
         return applications.map((entry, index) => {
           const textColor = hi(index);
