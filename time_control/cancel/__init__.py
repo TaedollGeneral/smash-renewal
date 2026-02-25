@@ -23,11 +23,33 @@ from ..time_handler import validate_cancel_time, _now_kst
 
 _GUEST_CATEGORIES = {"WED_GUEST", "FRI_GUEST", "WED_LEFTOVER", "FRI_LEFTOVER"}
 
-# 빈자리 알림을 지원하는 카테고리 → (요일_한글, 요일_영문, 게스트_카테고리)
-# 운동 카테고리만 관리자 정원 확정 + 빈자리 알림 대상이다.
+# [변경됨] 빈자리 알림을 지원하는 카테고리 → (요일_한글, 요일_영문, 게스트_카테고리)
+# 기존에는 정규 운동(WED_REGULAR, FRI_REGULAR)만 등록되어 있었으나,
+# 게스트(_GUEST)와 잔여석(_LEFTOVER) 카테고리를 추가하여 전 카테고리 알림을 지원한다.
+# 튜플 구조: (요일_한글, 요일_영문, 게스트_카테고리)
+#   · 요일_한글: get_capacities() 딕셔너리 조회 키 ("수" / "금")
+#   · 요일_영문: 확정 상태 플래그 선택 ("wed" / "fri")
+#   · 게스트_카테고리: count_special_guests() 호출 시 사용할 게스트 보드 카테고리명
 _VACANCY_CATEGORY_MAP: dict[str, tuple[str, str, str]] = {
-    "WED_REGULAR": ("수", "wed", "WED_GUEST"),
-    "FRI_REGULAR": ("금", "fri", "FRI_GUEST"),
+    # ── 정규 운동 ─────────────────────────────────────────────────────────────
+    "WED_REGULAR":  ("수", "wed", "WED_GUEST"),
+    "FRI_REGULAR":  ("금", "fri", "FRI_GUEST"),
+    # ── [추가] 게스트 ──────────────────────────────────────────────────────────
+    "WED_GUEST":    ("수", "wed", "WED_GUEST"),
+    "FRI_GUEST":    ("금", "fri", "FRI_GUEST"),
+    # ── [추가] 잔여석 ──────────────────────────────────────────────────────────
+    "WED_LEFTOVER": ("수", "wed", "WED_GUEST"),
+    "FRI_LEFTOVER": ("금", "fri", "FRI_GUEST"),
+}
+
+# [추가] 카테고리 영문 키 → 한글 표시명 매핑 (알림 메시지 동적 생성에 사용)
+_CATEGORY_DISPLAY_NAMES: dict[str, str] = {
+    "WED_REGULAR":  "수요일 운동",
+    "FRI_REGULAR":  "금요일 운동",
+    "WED_GUEST":    "수요일 게스트",
+    "FRI_GUEST":    "금요일 게스트",
+    "WED_LEFTOVER": "수요일 잔여석",
+    "FRI_LEFTOVER": "금요일 잔여석",
 }
 
 
@@ -97,17 +119,19 @@ def _check_and_notify_vacancy(category: str, cancel_pos: int) -> None:
     """취소된 사용자가 확정 정원 내 인원이었는지 판별하고, 빈자리 알림을 큐잉한다.
 
     처리 흐름:
-      1) 카테고리 필터 — WED_REGULAR / FRI_REGULAR 외 즉시 리턴
+      1) 카테고리 필터 — _VACANCY_CATEGORY_MAP 에 없는 카테고리는 즉시 리턴
       2) 해당 요일 정원 확정 여부 확인 (is_*_confirmed == True일 때만 진행)
       3) admin/capacity/store에서 총 정원 조회
       4) calculate_capacity_details()로 유효 정원 계산
-         · effective_capacity = details["운동"] + details["잔여석"]
-         · 이 합은 총 유효 슬롯 수로 항상 일정 (일반 보드 변경에 무관)
+         · 카테고리 종류에 따라 effective_capacity를 다르게 분기:
+           - _REGULAR  : details["운동"] + details["잔여석"]
+           - _GUEST    : details["게스트"]["limit"] + details["게스트"]["special_count"]
+           - _LEFTOVER : details["잔여석"]
       5) cancel_pos(0-based) < effective_capacity → 정원 내 인원이었음
-         → enqueue_push_to_day_subscribers()로 타겟 알림 큐잉 (Non-blocking)
+         → enqueue_push_to_category_subscribers()로 타겟 알림 큐잉 (Non-blocking)
 
     Args:
-        category:   취소가 발생한 카테고리 (예: "WED_REGULAR")
+        category:   취소가 발생한 카테고리 (예: "WED_REGULAR", "FRI_GUEST")
         cancel_pos: 취소 전 보드에서의 0-based 인덱스.
                     항목을 찾지 못한 경우 -1 (알림 발송 안 함).
     """
@@ -136,12 +160,23 @@ def _check_and_notify_vacancy(category: str, cancel_pos: int) -> None:
 
     # ④ 유효 정원 계산
     # calculate_capacity_details()는 취소 후 호출하지만,
-    # effective_capacity = details["운동"] + details["잔여석"] 는 항상 총 유효 슬롯 수와 같다.
+    # effective_capacity 는 총 유효 슬롯 수로 항상 일정하다
     # (일반 보드 크기와 무관한 값 — total_capacity와 게스트 보드에만 의존)
     from admin.capacity.calculator import calculate_capacity_details, count_special_guests
     special_count = count_special_guests(guest_category)
     details = calculate_capacity_details(day_korean, total_capacity, special_count)
-    effective_capacity = details["운동"] + details["잔여석"]
+
+    # [변경됨] 기존의 하드코딩된 effective_capacity 식을 제거하고,
+    # 카테고리 종류(_REGULAR / _GUEST / _LEFTOVER)에 따라 동적으로 분기한다.
+    if category.endswith("_REGULAR"):
+        # 정규 운동: 운동 슬롯 + 잔여석 슬롯의 합 (총 유효 슬롯)
+        effective_capacity = details["운동"] + details["잔여석"]
+    elif category.endswith("_GUEST"):
+        # 게스트: 일반 게스트 정원 + 특수 인원(ob / 교류전) 수
+        effective_capacity = details["게스트"]["limit"] + details["게스트"]["special_count"]
+    else:
+        # 잔여석(_LEFTOVER): 잔여석 슬롯만
+        effective_capacity = details["잔여석"]
 
     # ⑤ 정원 내 인원 판별 (0-based index: cancel_pos < effective_capacity)
     if cancel_pos >= effective_capacity:
@@ -150,9 +185,9 @@ def _check_and_notify_vacancy(category: str, cancel_pos: int) -> None:
     # 빈자리 발생! 해당 카테고리 알림 구독자에게 타겟 발송 큐잉 (Non-blocking)
     from notifications.sender import enqueue_push_to_category_subscribers
 
-    _MESSAGES = {
-        "WED_REGULAR": ("수요일 빈자리 알림", "수요일 운동에 빈자리가 생겼습니다!"),
-        "FRI_REGULAR": ("금요일 빈자리 알림", "금요일 운동에 빈자리가 생겼습니다!"),
-    }
-    title, body = _MESSAGES[category]
+    # [변경됨] 하드코딩된 _MESSAGES 딕셔너리를 삭제하고,
+    # _CATEGORY_DISPLAY_NAMES 를 참조하여 title·body를 동적으로 생성한다.
+    category_name = _CATEGORY_DISPLAY_NAMES[category]
+    title = f"{category_name} 빈자리 알림"
+    body  = f"{category_name}에 빈자리가 생겼습니다!"
     enqueue_push_to_category_subscribers(category, title=title, body=body)
