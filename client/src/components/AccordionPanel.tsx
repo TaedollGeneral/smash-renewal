@@ -1,5 +1,6 @@
 import { ChevronDown, Bell } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { BoardTable } from './BoardTable';
 import { AdminActionModal } from './AdminActionModal';
@@ -299,7 +300,7 @@ export function AccordionPanel({
       )}
 
       {/* 참여자 모달 */}
-      {showParticipantModal && (
+      {showParticipantModal && createPortal(
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
@@ -340,7 +341,8 @@ export function AccordionPanel({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Accordion Header */}
