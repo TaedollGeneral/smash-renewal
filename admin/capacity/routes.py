@@ -4,6 +4,7 @@ from admin.auth import admin_required
 from admin.capacity.store import update_capacities, get_capacities
 from time_control.scheduler_logic import Category
 from admin.capacity.calculator import calculate_capacity_details, count_special_guests
+import notifications.store
 from notifications.store import set_wed_confirmed, set_fri_confirmed
 from notifications.sender import enqueue_push_to_all
 
@@ -42,14 +43,16 @@ def set_capacity():
     # enqueue_push_to_all()은 Non-blocking (큐에 추가만 하고 즉시 반환)
     # → HTTP 응답 지연 없음; 실제 발송은 push-worker 데몬 스레드에서 처리
     if "수" in safe_data:
-        set_wed_confirmed(True)
-        title, body = _CONFIRM_MESSAGES["수"]
-        enqueue_push_to_all(title=title, body=body)
+        if not notifications.store.is_wed_confirmed:
+            set_wed_confirmed(True)
+            title, body = _CONFIRM_MESSAGES["수"]
+            enqueue_push_to_all(title=title, body=body)
 
     if "금" in safe_data:
-        set_fri_confirmed(True)
-        title, body = _CONFIRM_MESSAGES["금"]
-        enqueue_push_to_all(title=title, body=body)
+        if not notifications.store.is_fri_confirmed:
+            set_fri_confirmed(True)
+            title, body = _CONFIRM_MESSAGES["금"]
+            enqueue_push_to_all(title=title, body=body)
 
     raw = get_capacities()
     guest_category_map = {"수": Category.WED_GUEST, "금": Category.FRI_GUEST}

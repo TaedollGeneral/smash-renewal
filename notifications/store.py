@@ -80,6 +80,12 @@ def save_subscription(user_id: str, endpoint: str, p256dh: str, auth: str) -> No
     """
     conn = _get_conn()
     try:
+        # 동일 endpoint를 가진 다른 user_id의 레코드를 먼저 삭제한다.
+        # 한 기기(브라우저)는 마지막으로 로그인한 1명의 유저만 알림 소유권을 갖는다.
+        conn.execute(
+            "DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id != ?",
+            (endpoint, user_id)
+        )
         conn.execute("""
             INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
             VALUES (?, ?, ?, ?)
