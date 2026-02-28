@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { BoardTable } from './BoardTable';
 import { AdminActionModal } from './AdminActionModal';
+import { CancelSelectionModal } from './CancelSelectionModal';
 import type { CategoryState, GuestCapacity, User } from '@/types';
 import { useScheduleSystem, Category, type BoardEntry } from '@/hooks/useScheduleSystem';
 
@@ -87,11 +88,16 @@ export function AccordionPanel({
 
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
-  const [isApplyMode, setIsApplyMode] = useState(true);
 
   // 관리자 대리 신청/취소 모달
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminActionType, setAdminActionType] = useState<'신청' | '취소'>('신청');
+
+  // 취소 항목 선택 모달
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelParticipants, setCancelParticipants] = useState<string[]>([]);
+  // 관리자 대리 취소 흐름에서 확정 시 사용할 targetUserId 보관
+  const [pendingAdminCancelUserId, setPendingAdminCancelUserId] = useState<string | null>(null);
 
   const isManager = user?.role === 'manager';
 
@@ -162,7 +168,6 @@ export function AccordionPanel({
       return;
     }
     if (title === '게스트' || title === '잔여석') {
-      setIsApplyMode(true);
       setShowParticipantModal(true);
     } else {
       const result = await apply();
@@ -175,23 +180,18 @@ export function AccordionPanel({
     }
   };
 
-  // ── 2. 모달 제출 (참여자 본인 게스트/잔여석) ─────────────────
+  // ── 2. 모달 제출 (참여자 본인 게스트/잔여석 신청 전용) ──────────
   const handleParticipantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!participantName.trim()) return;
 
-    let result;
-    if (isApplyMode) {
-      result = await apply({ guestName: participantName.trim() });
-    } else {
-      result = await cancel();
-    }
+    const result = await apply({ guestName: participantName.trim() });
 
     if (result.success) {
-      alert(isApplyMode ? `${title} 신청이 완료되었습니다.` : `${title} 취소가 완료되었습니다.`);
+      alert(`${title} 신청이 완료되었습니다.`);
       onActionSuccess(); // ⭐️ 리프레시!
     } else {
-      alert(`${isApplyMode ? '신청' : '취소'} 실패: ${result.error}`);
+      alert(`신청 실패: ${result.error}`);
     }
     setParticipantName('');
     setShowParticipantModal(false);
@@ -208,12 +208,25 @@ export function AccordionPanel({
         alert(`신청 실패: ${result.error}`);
       }
     } else {
-      const result = await adminCancel(targetUserId);
-      if (result.success) {
-        alert(`[관리자] ${targetUserId} 대리 취소가 완료되었습니다.`);
-        onActionSuccess(); // ⭐️ 리프레시!
+      // 취소 모드
+      if (title === '게스트' || title === '잔여석') {
+        // applications에서 guest_name이 있는 항목들을 추출해 선택 모달로 연결.
+        // user_id는 백엔드에서 제거되므로 게스트 항목 전체를 목록으로 제공하고,
+        // 선택 확정 후 adminCancel(targetUserId, selectedName) 호출로 백엔드가 소유권 검증.
+        const participants = applications
+          .filter((e) => e.guest_name)
+          .map((e) => e.guest_name!);
+        setPendingAdminCancelUserId(targetUserId);
+        setCancelParticipants(participants);
+        setShowCancelModal(true);
       } else {
-        alert(`취소 실패: ${result.error}`);
+        const result = await adminCancel(targetUserId);
+        if (result.success) {
+          alert(`[관리자] ${targetUserId} 대리 취소가 완료되었습니다.`);
+          onActionSuccess(); // ⭐️ 리프레시!
+        } else {
+          alert(`취소 실패: ${result.error}`);
+        }
       }
     }
   };
@@ -226,14 +239,17 @@ export function AccordionPanel({
       setShowAdminModal(true);
       return;
     }
-    else {
-      // 일반 부원 → 확인 메시지
-      window.confirm(`${dayType}요일 ${title}을(를) 취소하시겠습니까?`);
-    }
     if (title === '게스트' || title === '잔여석') {
-      setIsApplyMode(false);
-      setShowParticipantModal(true);
+      // 현재 보드에서 본인 이름으로 신청된 항목의 guest_name 목록 추출.
+      // 보드 응답에서 user_id는 제거되므로 entry.name === user.name 으로 본인 항목 식별.
+      const participants = applications
+        .filter((e) => e.name === user?.name && e.guest_name)
+        .map((e) => e.guest_name!);
+      setPendingAdminCancelUserId(null);
+      setCancelParticipants(participants);
+      setShowCancelModal(true);
     } else {
+      if (!window.confirm(`${dayType}요일 ${title}을(를) 취소하시겠습니까?`)) return;
       const result = await cancel();
       if (result.success) {
         alert('취소가 완료되었습니다.');
@@ -244,7 +260,31 @@ export function AccordionPanel({
     }
   };
 
-  // ── 5. 알림 토글 핸들러 (레슨 제외 모든 패널) ───────────────────
+  // ── 5. 취소 선택 모달 확정 핸들러 ──────────────────────────────────
+  const handleCancelConfirm = async (selectedName: string) => {
+    if (pendingAdminCancelUserId !== null) {
+      // 관리자 대리 취소
+      const result = await adminCancel(pendingAdminCancelUserId, selectedName);
+      if (result.success) {
+        alert(`[관리자] ${pendingAdminCancelUserId} 대리 취소가 완료되었습니다.`);
+        onActionSuccess();
+      } else {
+        alert(`취소 실패: ${result.error}`);
+      }
+      setPendingAdminCancelUserId(null);
+    } else {
+      // 일반 회원 본인 취소
+      const result = await cancel({ guestName: selectedName });
+      if (result.success) {
+        alert('취소가 완료되었습니다.');
+        onActionSuccess();
+      } else {
+        alert(`취소 실패: ${result.error}`);
+      }
+    }
+  };
+
+  // ── 6. 알림 토글 핸들러 (레슨 제외 모든 패널) ───────────────────
   // - 정원 미확정(notifConfirmed=false): Toast 안내 후 종료
   // - 정원 확정(notifConfirmed=true): API 호출 → 성공 시 부모 상태 업데이트
   const handleNotification1Toggle = async (e: React.MouseEvent) => {
@@ -299,17 +339,27 @@ export function AccordionPanel({
         />
       )}
 
-      {/* 참여자 모달 */}
+      {/* 취소 항목 선택 모달 (createPortal은 CancelSelectionModal 내부에서 처리) */}
+      <CancelSelectionModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        category={title}
+        dayType={dayType}
+        participants={cancelParticipants}
+        onConfirm={handleCancelConfirm}
+      />
+
+      {/* 참여자 모달 (게스트/잔여석 신청 전용) */}
       {showParticipantModal && createPortal(
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {isApplyMode ? '운동참여인원 입력' : '취소할 인원 입력'}
+              운동참여인원 입력
             </h3>
             <form onSubmit={handleParticipantSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {isApplyMode ? '참여인원 이름' : '취소할 이름'}
+                  참여인원 이름
                 </label>
                 <input
                   type="text"
