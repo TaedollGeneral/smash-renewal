@@ -188,6 +188,6 @@ def _check_and_notify_vacancy(category: str, cancel_pos: int) -> None:
     # [변경됨] 하드코딩된 _MESSAGES 딕셔너리를 삭제하고,
     # _CATEGORY_DISPLAY_NAMES 를 참조하여 title·body를 동적으로 생성한다.
     category_name = _CATEGORY_DISPLAY_NAMES[category]
-    title = f"{category_name} 빈자리 알림"
-    body  = f"{category_name}에 빈자리가 생겼습니다!"
+    title = f"{category_name} 취소자 알림"
+    body  = f"{category_name}에 취소자가 생겼습니다!"
     enqueue_push_to_category_subscribers(category, title=title, body=body)
