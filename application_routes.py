@@ -58,8 +58,13 @@ def cancel():
 
     handle_cancel() 처리 순서:
       1) 시간 검증 (항상 수행, 바이패스 없음)
-      2) 취소 대상 결정 (일반: 토큰 ID, 게스트: prefix 탐색)
+      2) 취소 대상 결정
+         - 일반 카테고리: 토큰 ID
+         - 게스트 카테고리: guest_name 지정 시 정확 일치, 미지정 시 prefix 탐색
       3) 인메모리 조작 (board_store.remove_entry)
+
+    요청 Body (선택):
+      guest_name (str): 게스트 카테고리에서 취소할 특정 게스트 이름.
 
     매니저 대리 취소는 /admin/cancel이 전담한다.
     """
@@ -108,8 +113,13 @@ def admin_cancel():
     handle_admin_cancel() 처리 순서:
       1) role == 'manager' 검증 (실패 시 즉시 403)
       2) 시간 검증 없음 (의도적 생략)
-      3) 정확 일치 → 실패 시 guest prefix 탐색
+      3) 정확 일치(일반 항목) → 실패 시 게스트 항목 탐색
+         - target_guest_name 지정 시 정확 일치, 미지정 시 prefix 탐색
       4) 인메모리 조작 (board_store.remove_entry)
+
+    요청 Body:
+      target_user_id   (str, 필수): 취소 대상 회원 학번.
+      target_guest_name (str, 선택): 게스트 항목 중 취소할 특정 게스트 이름.
     """
     data = request.get_json() or {}
     category = data.get('category')

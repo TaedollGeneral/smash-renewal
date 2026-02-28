@@ -62,6 +62,11 @@ def handle_cancel(category: str) -> tuple[dict, int]:
 
     /cancel 엔드포인트 전용. manager 바이패스 로직 없음.
     시간 검증은 모든 요청에 대해 항상 수행한다.
+
+    요청 Body (선택):
+      guest_name (str): 게스트 카테고리에서 여러 항목 중 취소할 게스트 이름.
+                        지정 시 해당 이름과 정확히 일치하는 단일 항목만 삭제.
+                        미지정 시 기존 동작(prefix 탐색, 첫 번째 항목).
     """
     # Step 1: 토큰 정보 추출
     user = request.current_user
@@ -75,15 +80,28 @@ def handle_cancel(category: str) -> tuple[dict, int]:
 
     # Step 3: 취소 대상 user_id 결정
     if _is_guest_category(category):
-        # 게스트 취소: 프론트엔드는 category만 전송.
-        # "guest_{본인ID}_*" prefix로 인메모리 보드를 스캔해 본인 항목 식별.
-        # 보안: prefix에 자신의 user_id가 포함되어 타인 항목 접근 불가.
+        # 게스트 취소: guest_name 지정 여부에 따라 탐색 전략 분기.
+        # 보안: prefix/exact_id 모두 자신의 user_id를 포함하여 타인 항목 접근 불가.
+        data = request.get_json() or {}
+        guest_name = (data.get("guest_name") or "").strip()
+
         prefix = f"guest_{user_id}_"
         entries = get_board(category)
-        cancel_user_id = next(
-            (e["user_id"] for e in entries if e["user_id"].startswith(prefix)),
-            None,
-        )
+
+        if guest_name:
+            # [신규] 특정 게스트명 지정: 정확 일치로 단일 항목 탐색
+            exact_id = f"guest_{user_id}_{guest_name}"
+            cancel_user_id = next(
+                (e["user_id"] for e in entries if e["user_id"] == exact_id),
+                None,
+            )
+        else:
+            # [기존] guest_name 미지정: prefix 탐색으로 첫 번째 항목 취소
+            cancel_user_id = next(
+                (e["user_id"] for e in entries if e["user_id"].startswith(prefix)),
+                None,
+            )
+
         if cancel_user_id is None:
             return {"error": "취소할 게스트 신청 내역이 없습니다."}, 404
     else:
