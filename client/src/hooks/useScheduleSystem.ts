@@ -74,6 +74,24 @@ export async function fetchBoardData(category: Category): Promise<{
   };
 }
 
+/**
+ * 전체 카테고리 현황을 1회 요청으로 가져온다.
+ * 기존 7개 개별 요청(fetchBoardData × 7)을 대체하여 서버 부하를 ~85% 감소시킨다.
+ */
+export async function fetchAllBoardData(): Promise<Record<string, BoardEntry[]>> {
+  const response = await fetch('/api/all-boards');
+  if (!response.ok) {
+    throw new Error(`all-boards 조회 실패: ${response.status}`);
+  }
+  const data: Record<string, { status: string; applications: BoardEntry[] }> = await response.json();
+
+  const result: Record<string, BoardEntry[]> = {};
+  for (const [cat, value] of Object.entries(data)) {
+    result[cat] = value.applications ?? [];
+  }
+  return result;
+}
+
 // ── Hook ───────────────────────────────────────────────
 export function useScheduleSystem(category: Category) {
   // ⭐️ 상태(State) 및 폴링(useEffect) 로직 전면 제거

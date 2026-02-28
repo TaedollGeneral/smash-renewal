@@ -8,7 +8,7 @@ from time_control.rate_limiter import rate_limit
 from time_control.apply import handle_apply
 from time_control.cancel import handle_cancel
 from time_control.admin import handle_admin_apply, handle_admin_cancel
-from time_control.board_store import get_board
+from time_control.board_store import get_board, get_all_boards
 
 application_bp = Blueprint('application', __name__)
 
@@ -160,3 +160,39 @@ def get_status():
         "status": status,
         "applications": safe_applications,
     }), 200
+
+
+@application_bp.route('/api/all-boards', methods=['GET'])
+def get_all_statuses():
+    """전체 카테고리 현황 일괄 조회 API
+
+    기존 /api/board-data 를 카테고리별로 7회 호출하던 것을 1회로 통합한다.
+    인메모리에서 전체 스냅샷을 한 번에 반환하므로 Lock 획득도 1회로 줄어든다.
+
+    Response (JSON):
+        {
+          "WED_REGULAR": { "status": "OPEN", "applications": [...] },
+          "WED_GUEST":   { ... },
+          ...
+        }
+    """
+    now = _now_kst()
+    all_data = get_all_boards()
+
+    result = {}
+    for cat_enum in Category:
+        cat = cat_enum.value
+        status = get_current_status(cat, now)
+        applications = all_data.get(cat, [])
+
+        safe_applications = [
+            {k: v for k, v in entry.items() if k != "user_id"}
+            for entry in applications
+        ]
+
+        result[cat] = {
+            "status": status,
+            "applications": safe_applications,
+        }
+
+    return jsonify(result), 200
