@@ -99,13 +99,16 @@ export function useScheduleSystem(category: Category) {
     }
   }, [category]);
 
-  const cancel = useCallback(async (): Promise<ApiResult> => {
+  const cancel = useCallback(async (options?: { guestName?: string }): Promise<ApiResult> => {
     try {
+      const body: Record<string, string> = { category };
+      if (options?.guestName) body.guest_name = options.guestName;
+
       const response = await fetch('/api/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
-        body: JSON.stringify({ category }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -138,13 +141,16 @@ export function useScheduleSystem(category: Category) {
     }
   }, [category]);
 
-  const adminCancel = useCallback(async (targetUserId: string): Promise<ApiResult> => {
+  const adminCancel = useCallback(async (targetUserId: string, targetGuestName?: string): Promise<ApiResult> => {
     try {
+      const body: Record<string, string> = { category, target_user_id: targetUserId };
+      if (targetGuestName) body.target_guest_name = targetGuestName;
+
       const response = await fetch('/api/admin/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
-        body: JSON.stringify({ category, target_user_id: targetUserId }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
