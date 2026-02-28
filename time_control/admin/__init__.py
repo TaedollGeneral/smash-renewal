@@ -133,9 +133,17 @@ def handle_admin_cancel(category: str) -> tuple[dict, int]:
     - 진입 즉시 role == 'manager' 검증 (실패 시 403)
     - 시간 검증 없이 target_user_id로 삭제 처리
 
+    요청 Body:
+      target_user_id  (str, 필수): 취소 대상 회원 학번.
+      target_guest_name (str, 선택): 게스트 항목 중 취소할 게스트 이름.
+                                     지정 시 해당 이름과 정확히 일치하는 단일 항목만 삭제.
+                                     미지정 시 기존 동작(prefix 탐색, 첫 번째 항목).
+
     탐색 전략:
       1) target_user_id 정확 일치 (일반 회원 항목)
-      2) 실패 시 "guest_{target_user_id}_*" prefix 탐색 (게스트 항목)
+      2) 실패 시 게스트 항목 탐색:
+         - target_guest_name 지정: "guest_{target_user_id}_{target_guest_name}" 정확 일치
+         - target_guest_name 미지정: "guest_{target_user_id}_*" prefix 탐색 (첫 번째 항목)
       → 매니저는 학번만 입력해도 일반/게스트 항목 모두 취소 가능
     """
     # Step 1: Manager 권한 검증 — 가장 먼저 실행
@@ -148,11 +156,14 @@ def handle_admin_cancel(category: str) -> tuple[dict, int]:
     # Step 3: 요청 파라미터 파싱
     data = request.get_json() or {}
     target_user_id = (data.get("target_user_id") or "").strip()
+    target_guest_name = (data.get("target_guest_name") or "").strip()  # [신규] 선택적 게스트명
 
     if not target_user_id:
         return {"error": "target_user_id가 필요합니다."}, 400
     if len(target_user_id) > 20:
         return {"error": "유효하지 않은 target_user_id입니다."}, 400
+    if target_guest_name and len(target_guest_name) > 20:
+        return {"error": "게스트 이름은 20자 이하로 입력해주세요."}, 400
 
     # Step 3.5: 빈자리 감지를 위한 취소 전 보드 스냅샷
     # remove_entry() 호출 후에는 위치 정보가 사라지므로 반드시 먼저 스냅샷한다.
@@ -168,12 +179,22 @@ def handle_admin_cancel(category: str) -> tuple[dict, int]:
         _check_and_notify_vacancy(category, cancel_pos)
         return {"message": f"{target_user_id} 대리 취소가 완료되었습니다."}, 200
 
-    # [2차] prefix 탐색: 게스트 항목 ("guest_{target_user_id}_*")
-    prefix = f"guest_{target_user_id}_"
-    guest_user_id = next(
-        (e["user_id"] for e in entries_pre if e["user_id"].startswith(prefix)),
-        None,
-    )
+    # [2차] 게스트 항목 탐색: target_guest_name 지정 여부에 따라 전략 분기
+    if target_guest_name:
+        # [신규] 특정 게스트명 지정: 정확 일치로 단일 항목 탐색
+        exact_id = f"guest_{target_user_id}_{target_guest_name}"
+        guest_user_id = next(
+            (e["user_id"] for e in entries_pre if e["user_id"] == exact_id),
+            None,
+        )
+    else:
+        # [기존] target_guest_name 미지정: prefix 탐색으로 첫 번째 항목 취소
+        prefix = f"guest_{target_user_id}_"
+        guest_user_id = next(
+            (e["user_id"] for e in entries_pre if e["user_id"].startswith(prefix)),
+            None,
+        )
+
     if guest_user_id is None:
         return {"error": "취소할 신청 내역이 존재하지 않습니다."}, 404
 
