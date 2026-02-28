@@ -4,7 +4,7 @@ import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
 import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState, NotifStatus } from '@/types';
-import { Category, fetchBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
+import { fetchAllBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 
@@ -168,27 +168,11 @@ function App() {
   // 폴링: 5분에 한번 + soft refresh
   const [allApplications, setAllApplications] = useState<Record<string, BoardEntry[]>>({});
 
-  // ⭐️ 추가: 모든 게시판 데이터를 한번에 긁어오는 함수
+  // ⭐️ 배치 API: 7개 개별 요청 → 1회 /api/all-boards 호출로 통합
   const fetchAllBoards = useCallback(async () => {
     try {
-      const categories = Object.values(Category);
-      const results = await Promise.all(
-        categories.map(async (cat) => {
-          // 에러가 나도 다른 게시판은 뜨도록 에러 핸들링
-          try {
-            const res = await fetchBoardData(cat);
-            return { cat, applications: res.applications };
-          } catch (e) {
-            return { cat, applications: [] };
-          }
-        })
-      );
-
-      const newApps: Record<string, BoardEntry[]> = {};
-      results.forEach(({ cat, applications }) => {
-        newApps[cat] = applications;
-      });
-      setAllApplications(newApps);
+      const allData = await fetchAllBoardData();
+      setAllApplications(allData);
       console.log('[게시판 데이터] 갱신 완료');
     } catch (error) {
       console.error('[게시판 데이터] 갱신 실패:', error);
@@ -245,10 +229,22 @@ function App() {
     return () => clearInterval(id);
   }, [fetchCategoryStates]);
 
-  // ─── 카운트다운 0 도달 시 핸들러 ────────────────────────────────────────────
+  // ─── 카운트다운 0 도달 시 핸들러 (디바운스 + 랜덤 지터) ─────────────────────
+  // 동일 정각에 여러 패널이 동시에 카운트다운 0에 도달하면 중복 호출 방지 (2초 디바운스).
+  // 랜덤 지터(0~500ms)로 212명 동시 접속 시 Thundering Herd 현상을 완화한다.
+  const lastCountdownFetchRef = useRef(0);
+
   const handleCountdownZero = (dayType: DayType, category: BoardType) => {
-    console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신 요청`);
-    fetchCategoryStates();
+    const now = Date.now();
+    if (now - lastCountdownFetchRef.current < 2000) return;
+    lastCountdownFetchRef.current = now;
+
+    const jitter = Math.random() * 500;
+    console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → ${Math.round(jitter)}ms 후 갱신`);
+    setTimeout(() => {
+      fetchCategoryStates();
+      fetchAllBoards();
+    }, jitter);
   };
 
   // ─── Soft refresh: 세 가지 데이터 모두 즉시 갱신 ────────────────────────────

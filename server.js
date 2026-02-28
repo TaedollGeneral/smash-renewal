@@ -58,13 +58,34 @@ app.use((req, res, next) => {
     const proxy = http.request(options, (flaskRes) => {
         res.writeHead(flaskRes.statusCode, flaskRes.headers);
         flaskRes.pipe(res);
+
+        // Flask 응답 스트림 에러 (전송 도중 Flask 크래시 등)
+        flaskRes.on('error', (err) => {
+            console.error('[Flask response stream error]', err.message);
+            if (!res.writableEnded) res.end();
+        });
+    });
+
+    // Flask 연결 30초 타임아웃 — 무한 대기(hang) 방지
+    proxy.setTimeout(30_000, () => {
+        proxy.destroy();
+        if (!res.headersSent) {
+            res.writeHead(504, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Flask 서버 응답 시간 초과' }));
+        }
     });
 
     proxy.on('error', (err) => {
         console.error('[Flask proxy error]', err.message);
         if (!res.headersSent) {
-            res.status(502).json({ error: 'Flask 서버에 연결할 수 없습니다.' });
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Flask 서버에 연결할 수 없습니다.' }));
         }
+    });
+
+    // 클라이언트가 먼저 연결을 끊으면 Flask 요청도 중단 (리소스 누수 방지)
+    res.on('close', () => {
+        if (!proxy.destroyed) proxy.destroy();
     });
 
     req.pipe(proxy);

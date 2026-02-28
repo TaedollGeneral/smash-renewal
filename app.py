@@ -52,5 +52,10 @@ init_push_db()
 start_push_worker()
 
 if __name__ == '__main__':
-    # 127.0.0.1로 설정하여 Nginx를 통해서만 접근 가능하도록 제한
-    app.run(host='127.0.0.1', port=5000)
+    # Waitress (프로덕션 WSGI 서버)로 구동
+    # - threads=8: 동시 요청 8개 처리 (Flask 내장 서버의 싱글스레드 병목 해소)
+    # - EC2 프리티어(vCPU 2, RAM 1GB) 환경에 적합한 설정
+    # - channel_timeout=120: 느린 클라이언트 연결에 대한 타임아웃
+    from waitress import serve
+    print('Starting Waitress WSGI server on 127.0.0.1:5000 (threads=8)')
+    serve(app, host='127.0.0.1', port=5000, threads=8, channel_timeout=120)
