@@ -19,7 +19,9 @@
 #   2. 시간 검증 없음 (의도적 생략)
 #   3. target_user_id 정확 일치 삭제 시도
 #      → 실패 시 "guest_{target_user_id}_*" prefix 탐색 후 삭제
+#   3.5. 빈자리 감지를 위한 취소 전 보드 위치 기록
 #   4. remove_entry() 원자적 조작 → is_board_changed = True
+#   5. 빈자리 알림 트리거 (정원 확정 상태 + 정원 내 인원이었을 때만)
 
 import html
 import os
@@ -29,6 +31,7 @@ import time
 from flask import request
 
 from ..board_store import apply_entry, get_board, remove_entry
+from ..cancel import _check_and_notify_vacancy
 
 
 _DB_PATH = os.path.join(
@@ -151,23 +154,36 @@ def handle_admin_cancel(category: str) -> tuple[dict, int]:
     if len(target_user_id) > 20:
         return {"error": "유효하지 않은 target_user_id입니다."}, 400
 
+    # Step 3.5: 빈자리 감지를 위한 취소 전 보드 스냅샷
+    # remove_entry() 호출 후에는 위치 정보가 사라지므로 반드시 먼저 스냅샷한다.
+    entries_pre = get_board(category)
+
     # Step 4: 취소 대상 탐색 + 인메모리 조작 (is_board_changed = True 내부 처리)
     # [1차] 정확 일치: 일반 회원 항목
+    cancel_pos = next(
+        (i for i, e in enumerate(entries_pre) if e["user_id"] == target_user_id),
+        -1,
+    )
     if remove_entry(category, target_user_id):
+        _check_and_notify_vacancy(category, cancel_pos)
         return {"message": f"{target_user_id} 대리 취소가 완료되었습니다."}, 200
 
     # [2차] prefix 탐색: 게스트 항목 ("guest_{target_user_id}_*")
     prefix = f"guest_{target_user_id}_"
-    entries = get_board(category)
     guest_user_id = next(
-        (e["user_id"] for e in entries if e["user_id"].startswith(prefix)),
+        (e["user_id"] for e in entries_pre if e["user_id"].startswith(prefix)),
         None,
     )
     if guest_user_id is None:
         return {"error": "취소할 신청 내역이 존재하지 않습니다."}, 404
 
+    cancel_pos = next(
+        (i for i, e in enumerate(entries_pre) if e["user_id"] == guest_user_id),
+        -1,
+    )
     success = remove_entry(category, guest_user_id)
     if not success:
         return {"error": "취소할 신청 내역이 존재하지 않습니다."}, 404
 
+    _check_and_notify_vacancy(category, cancel_pos)
     return {"message": f"{target_user_id} 대리 취소가 완료되었습니다."}, 200
