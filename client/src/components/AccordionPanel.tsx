@@ -86,6 +86,10 @@ export function AccordionPanel({
     onCountdownZeroRef.current = onCountdownZero;
   });
 
+  // 중복 제출 방어막: API 호출 진행 중 상태
+  const [isApplying, setIsApplying] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
 
@@ -113,8 +117,9 @@ export function AccordionPanel({
   };
 
   // 버튼 활성화 상태 결정 (manager는 status에 무관하게 항상 활성화)
-  const isApplyEnabled = isManager || status === 'open';
-  const isCancelEnabled = isManager || status === 'open' || status === 'cancel-period';
+  // 일반 유저는 반드시 로그인 상태(user 존재)여야 활성화
+  const isApplyEnabled = isManager || (!!user && status === 'open');
+  const isCancelEnabled = isManager || (!!user && (status === 'open' || status === 'cancel-period'));
 
   // 밀리초를 적절한 형식으로 변환
   const formatTime = (milliseconds: number) => {
@@ -167,15 +172,30 @@ export function AccordionPanel({
       setShowAdminModal(true);
       return;
     }
+
+    // [직전 상태 검증] API 호출 전 토큰 유효성 재확인
+    const token = localStorage.getItem('smash_token');
+    if (!token) {
+      alert('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+      return;
+    }
+
     if (title === '게스트' || title === '잔여석') {
       setShowParticipantModal(true);
     } else {
-      const result = await apply();
-      if (result.success) {
-        alert('신청이 완료되었습니다.');
-        onActionSuccess(); // ⭐️ 리프레시!
-      } else {
-        alert(`신청 실패: ${result.error}`);
+      // [중복 제출 방어] API 요청 시작 즉시 버튼 비활성화
+      setIsApplying(true);
+      try {
+        const result = await apply();
+        if (result.success) {
+          alert('신청이 완료되었습니다.');
+          onActionSuccess(); // ⭐️ 리프레시!
+        } else {
+          alert(`신청 실패: ${result.error}`);
+        }
+      } finally {
+        // 성공/실패 후 1초 쿨타임으로 연속 클릭 방어
+        setTimeout(() => setIsApplying(false), 1000);
       }
     }
   };
@@ -239,6 +259,14 @@ export function AccordionPanel({
       setShowAdminModal(true);
       return;
     }
+
+    // [직전 상태 검증] API 호출 전 토큰 유효성 재확인
+    const token = localStorage.getItem('smash_token');
+    if (!token) {
+      alert('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+      return;
+    }
+
     if (title === '게스트' || title === '잔여석') {
       // 현재 보드에서 본인 이름으로 신청된 항목의 guest_name 목록 추출.
       // 보드 응답에서 user_id는 제거되므로 entry.name === user.name 으로 본인 항목 식별.
@@ -250,12 +278,19 @@ export function AccordionPanel({
       setShowCancelModal(true);
     } else {
       if (!window.confirm(`${dayType}요일 ${title}을(를) 취소하시겠습니까?`)) return;
-      const result = await cancel();
-      if (result.success) {
-        alert('취소가 완료되었습니다.');
-        onActionSuccess(); // ⭐️ 리프레시!
-      } else {
-        alert(`취소 실패: ${result.error}`);
+      // [중복 제출 방어] API 요청 시작 즉시 버튼 비활성화
+      setIsCancelling(true);
+      try {
+        const result = await cancel();
+        if (result.success) {
+          alert('취소가 완료되었습니다.');
+          onActionSuccess(); // ⭐️ 리프레시!
+        } else {
+          alert(`취소 실패: ${result.error}`);
+        }
+      } finally {
+        // 성공/실패 후 1초 쿨타임으로 연속 클릭 방어
+        setTimeout(() => setIsCancelling(false), 1000);
       }
     }
   };
@@ -456,23 +491,23 @@ export function AccordionPanel({
           <div className="flex gap-2">
             <button
               onClick={handleCancel}
-              disabled={!isCancelEnabled}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${isCancelEnabled
+              disabled={!isCancelEnabled || isApplying || isCancelling}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${isCancelEnabled && !isApplying && !isCancelling
                 ? 'bg-[#EAEAEA] text-black border-[#EAEAEA] hover:bg-[#D5D5D5] active:bg-[#C0C0C0] cursor-pointer'
                 : 'bg-[#EAEAEA]/20 text-gray-500 border-[#EAEAEA]/20 cursor-not-allowed opacity-40'
                 }`}
             >
-              취소
+              {isCancelling ? '처리중...' : '취소'}
             </button>
             <button
               onClick={handleApply}
-              disabled={!isApplyEnabled}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${isApplyEnabled
+              disabled={!isApplyEnabled || isApplying || isCancelling}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap ${isApplyEnabled && !isApplying && !isCancelling
                 ? 'bg-[#EAEAEA] text-black border-[#EAEAEA] hover:bg-[#D5D5D5] active:bg-[#C0C0C0] cursor-pointer'
                 : 'bg-[#EAEAEA]/20 text-gray-500 border-[#EAEAEA]/20 cursor-not-allowed opacity-40'
                 }`}
             >
-              신청
+              {isApplying ? '처리중...' : '신청'}
             </button>
           </div>
         </div>
