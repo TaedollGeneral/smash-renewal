@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-remote_stress.py  (로컬 PC에서 실행)
-======================================
-역할: EC2 서버를 향해 520건의 HTTP 요청을 동시에 폭격하고 결과를 집계한다.
+remote_stress.py  (로컬 PC 또는 EC2에서 실행)
+==============================================
+역할: 서버를 향해 520건의 HTTP 요청을 동시에 폭격하고 결과를 집계한다.
 
 사용법:
   1. EC2 서버에서 `python setup_db_and_tokens.py` 실행
   2. 콘솔에 출력된 VALID_TOKENS, INVALID_TOKENS 배열을 아래 변수에 붙여넣기
-  3. TARGET_HOST를 실제 운영 도메인으로 변경
-  4. `python remote_stress.py` 실행
+  3. 실행:
+     - EC2 내부 테스트:  python remote_stress.py --local
+     - 외부 도메인 테스트: python remote_stress.py
 
-의존 패키지 (로컬 PC에만 설치):
+의존 패키지:
   pip install requests
 """
 
@@ -42,7 +43,14 @@ INVALID_TOKENS = [
 #  [STEP 2] 타겟 설정
 # ══════════════════════════════════════════════════════════════════════════════
 
-TARGET_HOST = "https://your-domain.com"   # ← 실제 운영 도메인으로 변경
+# --local 플래그: EC2 내부에서 직접 테스트 (Node.js 프록시 경유)
+# --flask 플래그: EC2 내부에서 Flask 직접 테스트 (프록시 완전 우회)
+if "--flask" in sys.argv:
+    TARGET_HOST = "http://127.0.0.1:5000"
+elif "--local" in sys.argv:
+    TARGET_HOST = "http://127.0.0.1:3000"
+else:
+    TARGET_HOST = "https://uos-smash.cloud"
 APPLY_URL   = f"{TARGET_HOST}/api/apply"
 BOARD_URL   = f"{TARGET_HOST}/api/all-boards"
 CATEGORY    = "WED_REGULAR"
