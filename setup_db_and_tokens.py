@@ -4,6 +4,7 @@ setup_db_and_tokens.py  (EC2 서버에서 실행)
 =============================================
 역할 1. test1~test100 유저를 DB에 세팅하고 token_version=1로 초기화
 역할 2. 유효 JWT 100개 + 비정상 JWT 20개를 생성하여 콘솔에 출력
+역할 3. 생성된 토큰을 실서버(localhost:5000, localhost:3000)에 실제 요청하여 검증
 
 출력된 토큰 배열을 복사한 뒤, 로컬 PC의 remote_stress.py 상단에 붙여넣으세요.
 """
@@ -12,6 +13,9 @@ import os
 import sys
 import datetime
 import sqlite3
+import json
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 # ── 환경 확인 ───────────────────────────────────────────────────────────────
 
@@ -97,6 +101,96 @@ try:
     print(f"  [셀프 검증 OK] 토큰 디코딩 성공: id={test_decoded['id']}, role={test_decoded['role']}, ver={test_decoded['ver']}")
 except Exception as e:
     print(f"  [셀프 검증 FAIL] {e} — SECRET_KEY 불일치 의심!")
+
+# ── Phase 3.5: 실서버 라이브 검증 ─────────────────────────────────────────
+
+print(f"\n[Phase 3.5] 실서버 라이브 검증 (생성된 토큰으로 실제 HTTP 요청)")
+
+def live_test(base_url, label):
+    """생성된 토큰으로 실제 서버에 요청하여 토큰 유효성을 검증한다."""
+    test_token = valid_tokens[0]
+    # GET /api/all-boards (토큰 필요 없는 엔드포인트로 서버 생존 확인)
+    try:
+        req = Request(f"{base_url}/api/all-boards")
+        resp = urlopen(req, timeout=5)
+        print(f"  [{label}] 서버 생존 확인 OK (GET /api/all-boards → {resp.status})")
+    except HTTPError as e:
+        print(f"  [{label}] 서버 생존 확인: HTTP {e.code}")
+    except (URLError, OSError) as e:
+        print(f"  [{label}] 서버 연결 실패: {e}")
+        print(f"  [{label}] → 서버가 실행 중인지 확인하세요.")
+        return False
+
+    # POST /api/apply (토큰 인증이 필요한 엔드포인트)
+    try:
+        body = json.dumps({"category": "WED_REGULAR"}).encode()
+        req = Request(
+            f"{base_url}/api/apply",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {test_token}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        resp = urlopen(req, timeout=5)
+        resp_body = resp.read().decode()
+        print(f"  [{label}] 토큰 인증 OK! (POST /api/apply → {resp.status})")
+        print(f"  [{label}] 응답: {resp_body[:200]}")
+        return True
+    except HTTPError as e:
+        resp_body = e.read().decode()
+        if e.code == 401:
+            print(f"  [{label}] 토큰 인증 FAIL! (401) → 응답: {resp_body[:200]}")
+            # 에러 메시지로 원인 분류
+            if "유효하지 않은 토큰" in resp_body:
+                print(f"  [{label}] → 원인: SECRET_KEY 불일치! 서버 재시작이 필요합니다.")
+                print(f"  [{label}]   서버 재시작 후 이 스크립트를 다시 실행하세요.")
+            elif "만료" in resp_body or "세션" in resp_body:
+                print(f"  [{label}] → 원인: 토큰 버전 또는 만료 문제")
+            return False
+        elif e.code == 400:
+            # 400은 시간대 오류일 수 있음 → 토큰 자체는 유효한 것
+            print(f"  [{label}] 토큰 인증 OK! (인증 통과 후 400 = 시간대/카테고리 오류)")
+            print(f"  [{label}] 응답: {resp_body[:200]}")
+            return True
+        elif e.code == 409:
+            # 이미 신청함 → 토큰 유효
+            print(f"  [{label}] 토큰 인증 OK! (409 = 이미 신청됨)")
+            return True
+        elif e.code == 429:
+            # rate limit → 토큰 자체는 검증 전에 차단될 수 있음
+            print(f"  [{label}] Rate limit (429). 토큰 인증 여부 불확실.")
+            return None
+        else:
+            print(f"  [{label}] 예상 외 응답: HTTP {e.code} → {resp_body[:200]}")
+            return False
+    except (URLError, OSError) as e:
+        print(f"  [{label}] 연결 실패: {e}")
+        return False
+
+flask_ok = live_test("http://127.0.0.1:5000", "Flask:5000")
+node_ok  = live_test("http://127.0.0.1:3000", "Node:3000")
+
+if flask_ok is False:
+    print(f"\n  {'!'*60}")
+    print(f"  !! Flask 서버가 토큰을 거부했습니다!")
+    print(f"  !! 서버의 SECRET_KEY가 현재 .env와 다를 수 있습니다.")
+    print(f"  !!")
+    print(f"  !! 해결 방법:")
+    print(f"  !!   1. Flask 서버를 재시작하세요:")
+    print(f"  !!      sudo systemctl restart smash  (또는 해당 서비스명)")
+    print(f"  !!      또는 수동: kill → python app.py")
+    print(f"  !!   2. 서버 재시작 후 이 스크립트를 다시 실행하세요.")
+    print(f"  {'!'*60}")
+    print(f"\n  토큰 출력은 계속하지만, 서버 재시작 전에는 사용할 수 없습니다.\n")
+
+if flask_ok is True and node_ok is False:
+    print(f"\n  [!] Flask 직접 연결은 OK인데 Node.js 프록시에서 실패")
+    print(f"  [!] Node.js 서버 재시작 필요: sudo systemctl restart smash-node (또는 해당 서비스명)\n")
+
+if flask_ok is True and node_ok is not False:
+    print(f"\n  [✓] 토큰 검증 통과! 아래 토큰을 remote_stress.py에 사용할 수 있습니다.\n")
 
 # ── Phase 4: 비정상 JWT 20개 생성 (4가지 유형 x 5개) ─────────────────────
 
