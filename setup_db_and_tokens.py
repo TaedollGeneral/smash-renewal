@@ -35,6 +35,8 @@ with app.app_context():
     SECRET_KEY = app.config['SECRET_KEY']
 
 print(f"  SECRET_KEY 확보 완료 (길이: {len(SECRET_KEY)}자)")
+print(f"  SECRET_KEY 앞8자: {SECRET_KEY[:8]}...")
+print(f"  [확인] 운영 Flask 프로세스와 이 값이 동일해야 토큰이 유효합니다.")
 
 # ── Phase 2: DB 유저 세팅 ─────────────────────────────────────────────────
 
@@ -55,12 +57,12 @@ for i in range(1, USER_COUNT + 1):
         conn.execute(
             "INSERT INTO users (student_id, password, name, role, token_version) "
             "VALUES (?, ?, ?, ?, ?)",
-            (uid, "dummy_hash", f"tester{i}", "user", 1),
+            (uid, "dummy_hash", f"tester{i}", "none", 1),
         )
         created += 1
     except sqlite3.IntegrityError:
         conn.execute(
-            "UPDATE users SET token_version = 1 WHERE student_id = ?",
+            "UPDATE users SET role = 'none', token_version = 1 WHERE student_id = ?",
             (uid,),
         )
         updated += 1
@@ -80,7 +82,7 @@ for i in range(1, USER_COUNT + 1):
     payload = {
         "id":   f"test{i}",
         "name": f"tester{i}",
-        "role": "user",
+        "role": "none",
         "ver":  1,
         "exp":  exp,
     }
@@ -88,6 +90,13 @@ for i in range(1, USER_COUNT + 1):
     valid_tokens.append(token)
 
 print(f"  {len(valid_tokens)}개 생성 완료 (exp: +24h)")
+
+# 셀프 검증: 첫 번째 토큰을 같은 SECRET_KEY로 디코딩
+try:
+    test_decoded = jwt.decode(valid_tokens[0], SECRET_KEY, algorithms=["HS256"])
+    print(f"  [셀프 검증 OK] 토큰 디코딩 성공: id={test_decoded['id']}, role={test_decoded['role']}, ver={test_decoded['ver']}")
+except Exception as e:
+    print(f"  [셀프 검증 FAIL] {e} — SECRET_KEY 불일치 의심!")
 
 # ── Phase 4: 비정상 JWT 20개 생성 (4가지 유형 x 5개) ─────────────────────
 
@@ -97,26 +106,26 @@ invalid_tokens = []
 
 # 유형 1: 잘못된 서명 (5개) — InvalidTokenError 유도
 for i in range(1, 6):
-    payload = {"id": f"test{i}", "name": f"tester{i}", "role": "user", "ver": 1, "exp": exp}
+    payload = {"id": f"test{i}", "name": f"tester{i}", "role": "none", "ver": 1, "exp": exp}
     token = jwt.encode(payload, "wrong_secret_key_for_testing", algorithm="HS256")
     invalid_tokens.append(("bad_signature", token))
 
 # 유형 2: DB에 없는 유저 (5개) — token_version 조회 실패 유도
 for i in range(1, 6):
-    payload = {"id": f"ghost_{i}", "name": f"유령{i}", "role": "user", "ver": 1, "exp": exp}
+    payload = {"id": f"ghost_{i}", "name": f"유령{i}", "role": "none", "ver": 1, "exp": exp}
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     invalid_tokens.append(("nonexistent_user", token))
 
 # 유형 3: 버전 불일치 (5개) — ver=999 vs DB ver=1
 for i in range(1, 6):
-    payload = {"id": f"test{i}", "name": f"tester{i}", "role": "user", "ver": 999, "exp": exp}
+    payload = {"id": f"test{i}", "name": f"tester{i}", "role": "none", "ver": 999, "exp": exp}
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     invalid_tokens.append(("version_mismatch", token))
 
 # 유형 4: 만료된 토큰 (5개) — ExpiredSignatureError 유도
 for i in range(1, 6):
     expired_exp = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
-    payload = {"id": f"test{i}", "name": f"tester{i}", "role": "user", "ver": 1, "exp": expired_exp}
+    payload = {"id": f"test{i}", "name": f"tester{i}", "role": "none", "ver": 1, "exp": expired_exp}
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     invalid_tokens.append(("expired_token", token))
 
