@@ -12,6 +12,11 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
 
+@app.route('/api/debug-key')
+def debug_key():
+    key = str(app.config.get('SECRET_KEY', 'NONE'))
+    return {"key_prefix": key[:8], "length": len(key)}
+
 # --- [모듈 등록 구역] ---
 from smash_db.auth import auth_bp, migrate_token_version_column
 app.register_blueprint(auth_bp)
