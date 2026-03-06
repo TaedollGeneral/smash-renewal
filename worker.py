@@ -61,7 +61,8 @@ def _init_db() -> sqlite3.Connection:
             type       TEXT    NOT NULL,
             guest_name TEXT,
             timestamp  REAL    NOT NULL,
-            created_at TEXT    DEFAULT (datetime('now', '+9 hours'))
+            created_at TEXT    DEFAULT (datetime('now', '+9 hours')),
+            UNIQUE(category, user_id)
         )
     """)
     conn.commit()
@@ -107,9 +108,9 @@ def main() -> None:
             _, raw = result  # (queue_name, data)
             entry = json.loads(raw)
 
-            # SQLite INSERT
+            # SQLite INSERT (중복 신청은 UNIQUE 제약으로 자동 무시)
             conn.execute(
-                """INSERT INTO applications
+                """INSERT OR IGNORE INTO applications
                        (user_id, name, category, type, guest_name, timestamp)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (
