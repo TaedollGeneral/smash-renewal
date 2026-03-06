@@ -41,12 +41,12 @@ migrate_token_version_column()
 from admin.capacity.store import init_cache as init_capacity_cache
 init_capacity_cache()
 
-# 게시판: 백업 복구 + 백그라운드 저장 + 주간 리셋 스케줄러
-from time_control.board_store import load_from_backup, start_background_saver
+# 게시판: SQLite applications 테이블 초기화 + 레거시 백업 마이그레이션 + 주간 리셋
+from time_control.board_store import ensure_table, load_from_backup
 from time_control.scheduler_logic import start_reset_scheduler
 
-load_from_backup()
-start_background_saver()
+ensure_table()         # applications 테이블 생성 (없을 때만)
+load_from_backup()     # board_backup.json → SQLite 일회성 마이그레이션
 start_reset_scheduler(KST)
 
 # 푸시 알림: SQLite 테이블 초기화 + 백그라운드 발송 워커 시작
@@ -57,10 +57,6 @@ init_push_db()
 start_push_worker()
 
 if __name__ == '__main__':
-    # Waitress (프로덕션 WSGI 서버)로 구동
-    # - threads=8: 동시 요청 8개 처리 (Flask 내장 서버의 싱글스레드 병목 해소)
-    # - EC2 프리티어(vCPU 2, RAM 1GB) 환경에 적합한 설정
-    # - channel_timeout=120: 느린 클라이언트 연결에 대한 타임아웃
-    from waitress import serve
-    print('Starting Waitress WSGI server on 127.0.0.1:5000 (threads=8)')
-    serve(app, host='127.0.0.1', port=5000, threads=8, channel_timeout=120)
+    # 프로덕션: gunicorn -w 2 --threads 4 app:app
+    # 개발 환경 전용 — 로컬 테스트 시에만 사용
+    app.run(host='127.0.0.1', port=5000, debug=True)
