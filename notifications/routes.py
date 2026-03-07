@@ -136,7 +136,7 @@ def toggle():
     # ③ 요일별 확정 상태 검사 (모듈 참조로 최신값 읽기)
     #    정원이 확정되지 않은 상태(False)에서는 변경 거부
     is_wed    = category.startswith('WED_')
-    confirmed = _store.is_wed_confirmed if is_wed else _store.is_fri_confirmed
+    confirmed = _store.get_wed_confirmed() if is_wed else _store.get_fri_confirmed()
     if not confirmed:
         day_label = '수요일' if is_wed else '금요일'
         return jsonify({
@@ -182,7 +182,7 @@ def status():
     prefs = _store.get_user_prefs(user_id)
 
     return jsonify({
-        'wed_confirmed': _store.is_wed_confirmed,
-        'fri_confirmed': _store.is_fri_confirmed,
+        'wed_confirmed': _store.get_wed_confirmed(),
+        'fri_confirmed': _store.get_fri_confirmed(),
         'prefs':         prefs,   # {"wed": bool, "fri": bool}
     }), 200

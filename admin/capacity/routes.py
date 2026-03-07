@@ -43,13 +43,13 @@ def set_capacity():
     # enqueue_push_to_all()은 Non-blocking (큐에 추가만 하고 즉시 반환)
     # → HTTP 응답 지연 없음; 실제 발송은 push-worker 데몬 스레드에서 처리
     if "수" in safe_data:
-        if not notifications.store.is_wed_confirmed:
+        if not notifications.store.get_wed_confirmed():
             set_wed_confirmed(True)
             title, body = _CONFIRM_MESSAGES["수"]
             enqueue_push_to_all(title=title, body=body)
 
     if "금" in safe_data:
-        if not notifications.store.is_fri_confirmed:
+        if not notifications.store.get_fri_confirmed():
             set_fri_confirmed(True)
             title, body = _CONFIRM_MESSAGES["금"]
             enqueue_push_to_all(title=title, body=body)
