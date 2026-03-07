@@ -162,10 +162,9 @@ def _check_and_notify_vacancy(category: str, cancel_pos: int) -> None:
 
     day_korean, day_eng, guest_category = _VACANCY_CATEGORY_MAP[category]
 
-    # ② 요일별 정원 확정 상태 확인 (In-Memory, I/O 없음)
-    # 모듈 참조로 접근하여 항상 최신값을 읽는다 (직접 import 시 stale 값 문제 방지)
+    # ② 요일별 정원 확정 상태 확인 (Redis, 모든 워커가 동일한 값을 참조)
     import notifications.store as _nstore
-    confirmed = _nstore.is_wed_confirmed if day_eng == "wed" else _nstore.is_fri_confirmed
+    confirmed = _nstore.get_wed_confirmed() if day_eng == "wed" else _nstore.get_fri_confirmed()
     if not confirmed:
         return
 

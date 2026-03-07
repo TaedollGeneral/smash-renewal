@@ -2,20 +2,37 @@
 #
 # 저장소 분리 원칙:
 #   - 브라우저 Push 구독 정보 (endpoint, p256dh, auth) → push_db.sqlite (영속)
-#   - 카테고리 알림 On/Off, 요일별 정원 확정 상태, Rate Limit 캐시 → In-Memory (휘발성)
+#   - 카테고리 알림 On/Off, 요일별 정원 확정 상태 → Redis (Gunicorn 멀티 워커 간 공유)
+#   - Rate Limit 캐시 → In-Memory (프로세스별, 정확도보다 성능 우선)
 #
 # DB I/O는 SQLite 구독 테이블 CRUD에서만 발생한다.
-# 나머지 상태는 전부 메모리 딕셔너리로 관리하여 빈번한 폴링/상태 조회에서
-# 디스크 I/O가 전혀 없도록 설계한다.
+# 확정 상태와 알림 구독 설정은 Redis로 관리하여
+# Gunicorn 멀티 워커 간 데이터 정합성을 보장한다.
 
+import os
 import sqlite3
 import threading
 from pathlib import Path
+
+import redis
 
 # ── 경로 설정 ─────────────────────────────────────────────────────────────────
 
 _BASE_DIR = Path(__file__).resolve().parent        # notifications/
 _DB_PATH  = _BASE_DIR / "push_db.sqlite"
+
+# ── Redis 연결 (Gunicorn 멀티 워커 간 상태 공유) ──────────────────────────────
+_redis = redis.Redis(
+    host=os.environ.get("REDIS_HOST", "127.0.0.1"),
+    port=int(os.environ.get("REDIS_PORT", 6379)),
+    db=int(os.environ.get("REDIS_DB", 0)),
+    decode_responses=True,
+)
+
+# Redis 키 접두사
+_CONFIRMED_KEY_WED = "notif:confirmed:wed"
+_CONFIRMED_KEY_FRI = "notif:confirmed:fri"
+_CAT_SUB_PREFIX    = "notif:cat:"          # notif:cat:{category} → SET of user_ids
 
 # ── SQLite 헬퍼 ───────────────────────────────────────────────────────────────
 
@@ -167,41 +184,63 @@ NOTIF_CATEGORIES: frozenset[str] = frozenset({
     "FRI_REGULAR", "FRI_GUEST", "FRI_LEFTOVER",
 })
 
-# ── In-Memory 상태 ────────────────────────────────────────────────────────────
+# ── Redis-backed 상태 (Gunicorn 멀티 워커 간 공유) ─────────────────────────
 #
-# 아래 전역 변수들은 서버 프로세스 수명과 동일하게 메모리에 상주한다.
-# DB를 거치지 않으므로 I/O 비용이 없으며, 서버 재시작 시 초기값으로 돌아간다.
-# (구독 정보는 SQLite에서 복구되지만 아래 상태는 모두 초기화됨)
+# 정원 확정 상태와 카테고리 알림 구독 설정을 Redis로 관리하여
+# Gunicorn fork된 여러 워커 프로세스가 동일한 상태를 공유한다.
+#
+# Rate Limit 캐시만 In-Memory로 유지 (프로세스별 독립, 정밀도보다 성능 우선)
 
-# 사용자별 카테고리별 알림 구독 상태
-# 구조: {user_id: {category: bool}}
-# 예: {"20231234": {"WED_REGULAR": True, "FRI_GUEST": False, ...}}
-_DEFAULT_PREFS: dict[str, bool] = {cat: False for cat in sorted(NOTIF_CATEGORIES)}
-
-category_subscribers: dict[str, dict[str, bool]] = {}
-
-# 요일별 정원 확정 상태 (관리자가 확정 버튼을 눌렀을 때 True로 전환)
-# 이 값이 True로 바뀌는 시점에 해당 요일 구독자들에게 푸시를 발송한다.
-is_wed_confirmed: bool = False
-is_fri_confirmed: bool = False
-
-# Rate Limit 캐시: 알림 설정 토글 남용 방지
-# 구조: {user_id: [timestamp_float, ...]}  (최근 N초 내 요청 타임스탬프 목록)
+# Rate Limit 캐시: 알림 설정 토글 남용 방지 (프로세스 로컬)
 rate_limits: dict[str, list[float]] = {}
+_mem_lock = threading.Lock()
 
-# ── In-Memory 헬퍼 함수 ───────────────────────────────────────────────────────
 
-_mem_lock = threading.Lock()   # 인메모리 상태 동시 접근 보호
+# ── 정원 확정 상태 (Redis) ────────────────────────────────────────────────────
 
+def get_wed_confirmed() -> bool:
+    """수요일 정원 확정 상태를 Redis에서 읽어 반환한다."""
+    return _redis.get(_CONFIRMED_KEY_WED) == "1"
+
+
+def get_fri_confirmed() -> bool:
+    """금요일 정원 확정 상태를 Redis에서 읽어 반환한다."""
+    return _redis.get(_CONFIRMED_KEY_FRI) == "1"
+
+
+def set_wed_confirmed(value: bool) -> None:
+    """수요일 정원 확정 상태를 변경한다 (Redis, 모든 워커에 즉시 반영)."""
+    if value:
+        _redis.set(_CONFIRMED_KEY_WED, "1")
+    else:
+        _redis.delete(_CONFIRMED_KEY_WED)
+
+
+def set_fri_confirmed(value: bool) -> None:
+    """금요일 정원 확정 상태를 변경한다 (Redis, 모든 워커에 즉시 반영)."""
+    if value:
+        _redis.set(_CONFIRMED_KEY_FRI, "1")
+    else:
+        _redis.delete(_CONFIRMED_KEY_FRI)
+
+
+# ── 카테고리 알림 구독 (Redis SET per category) ──────────────────────────────
 
 def get_user_prefs(user_id: str) -> dict[str, bool]:
     """사용자의 카테고리별 알림 설정을 반환한다.
 
+    Redis에서 각 카테고리 SET에 user_id가 포함되어 있는지 확인한다.
+    Pipeline으로 1회 라운드트립에 전체 카테고리를 조회한다.
+
     Returns:
-        {category: bool, ...}  — NOTIF_CATEGORIES 전체 키, 미등록 시 기본값 False
+        {category: bool, ...}  — NOTIF_CATEGORIES 전체 키
     """
-    with _mem_lock:
-        return dict(category_subscribers.get(user_id, _DEFAULT_PREFS))
+    pipe = _redis.pipeline()
+    cats = sorted(NOTIF_CATEGORIES)
+    for cat in cats:
+        pipe.sismember(f"{_CAT_SUB_PREFIX}{cat}", user_id)
+    results = pipe.execute()
+    return {cat: bool(r) for cat, r in zip(cats, results)}
 
 
 def set_user_pref(user_id: str, category: str, enabled: bool) -> None:
@@ -212,11 +251,13 @@ def set_user_pref(user_id: str, category: str, enabled: bool) -> None:
         category: NOTIF_CATEGORIES 중 하나 (예: "WED_REGULAR")
         enabled:  True(구독) / False(해제)
     """
-    with _mem_lock:
-        if user_id not in category_subscribers:
-            category_subscribers[user_id] = dict(_DEFAULT_PREFS)
-        if category in NOTIF_CATEGORIES:
-            category_subscribers[user_id][category] = enabled
+    if category not in NOTIF_CATEGORIES:
+        return
+    key = f"{_CAT_SUB_PREFIX}{category}"
+    if enabled:
+        _redis.sadd(key, user_id)
+    else:
+        _redis.srem(key, user_id)
 
 
 def get_subscribers_for_category(category: str) -> list[str]:
@@ -228,9 +269,7 @@ def get_subscribers_for_category(category: str) -> list[str]:
     Returns:
         구독 중인 user_id 리스트
     """
-    with _mem_lock:
-        return [uid for uid, prefs in category_subscribers.items()
-                if prefs.get(category, False)]
+    return list(_redis.smembers(f"{_CAT_SUB_PREFIX}{category}"))
 
 
 def reset_weekly_state() -> None:
@@ -240,40 +279,24 @@ def reset_weekly_state() -> None:
     스레드에서 호출된다. notifications/scheduler.py → 이 함수 순으로 실행된다.
 
     초기화 대상:
-      - category_subscribers → {} (알림 On/Off 설정 전부 삭제)
+      - 카테고리별 구독 SET 전부 삭제 (알림 On/Off 설정)
         push_subscriptions SQLite 테이블은 건드리지 않는다 (기기 등록 정보 보존).
-      - is_wed_confirmed / is_fri_confirmed → False
+      - confirmed 키 삭제
         → 프론트엔드의 벨 버튼이 다시 비활성(disabled) 상태로 돌아간다.
     """
-    with _mem_lock:
-        category_subscribers.clear()
-    set_wed_confirmed(False)
-    set_fri_confirmed(False)
-
-
-def set_wed_confirmed(value: bool) -> None:
-    """수요일 정원 확정 상태를 변경한다.
-
-    단순 대입(`is_wed_confirmed = True`)은 외부 모듈에서 전역 변수를 수정하지 못하므로
-    반드시 이 함수를 통해 변경해야 한다.
-    관리자가 수요일 정원을 확정할 때 호출하고, 매주 리셋 시 False로 되돌린다.
-    """
-    global is_wed_confirmed
-    is_wed_confirmed = value
-
-
-def set_fri_confirmed(value: bool) -> None:
-    """금요일 정원 확정 상태를 변경한다."""
-    global is_fri_confirmed
-    is_fri_confirmed = value
+    pipe = _redis.pipeline()
+    for cat in NOTIF_CATEGORIES:
+        pipe.delete(f"{_CAT_SUB_PREFIX}{cat}")
+    pipe.delete(_CONFIRMED_KEY_WED)
+    pipe.delete(_CONFIRMED_KEY_FRI)
+    pipe.execute()
 
 
 def check_rate_limit(user_id: str, max_requests: int = 5,
                      window_seconds: float = 60.0) -> bool:
     """Rate limit 검사: window 내 요청 횟수가 max_requests를 초과하면 False 반환.
 
-    동시성 안전: _mem_lock 보호 하에 오래된 타임스탬프를 제거하고
-    현재 요청 시각을 추가한다.
+    프로세스 로컬 In-Memory로 유지 (정밀도보다 성능 우선).
 
     Args:
         user_id:        검사 대상 사용자
@@ -287,7 +310,6 @@ def check_rate_limit(user_id: str, max_requests: int = 5,
     now = time.monotonic()
     with _mem_lock:
         timestamps = rate_limits.get(user_id, [])
-        # window 이전 항목 제거
         timestamps = [t for t in timestamps if now - t < window_seconds]
         if len(timestamps) >= max_requests:
             rate_limits[user_id] = timestamps
