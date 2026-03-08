@@ -337,7 +337,7 @@ function App() {
       setCapacities(prev => {
         const merged = { ...prev };
         for (const [day, value] of Object.entries(data.capacities)) {
-          if (value != null) merged[day] = value;
+          if (value != null) merged[day as keyof typeof merged] = value as typeof merged[keyof typeof merged];
         }
         return merged;
       });
