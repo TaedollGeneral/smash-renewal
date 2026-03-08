@@ -150,8 +150,10 @@ export function AccordionPanel({
 
     if (deadlineTimestamp <= 0) return;
 
-    const intervalMs = 100;
-    const interval = setInterval(() => {
+    // 남은 시간 60초 이상이면 1000ms 간격, 미만이면 100ms 간격 (안드로이드 렉 방지)
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
       const remaining = Math.max(0, deadlineTimestamp - Date.now());
       setRemainingMilliseconds(remaining);
 
@@ -159,9 +161,17 @@ export function AccordionPanel({
         hasCalledZeroRef.current = true;
         onCountdownZeroRef.current();
       }
-    }, intervalMs);
 
-    return () => clearInterval(interval);
+      if (remaining > 0) {
+        const intervalMs = remaining > 60_000 ? 1000 : 100;
+        timerId = setTimeout(tick, intervalMs);
+      }
+    };
+
+    const firstInterval = initial > 60_000 ? 1000 : 100;
+    timerId = setTimeout(tick, firstInterval);
+
+    return () => clearTimeout(timerId);
   }, [deadlineTimestamp]);
 
   // ── 1. 신청 버튼 핸들러 ─────────────────────────────────────────
@@ -362,7 +372,7 @@ export function AccordionPanel({
 
   // ── 화면 렌더링 (JSX) ─────────────────────────────────────────
   return (
-    <div className="group relative bg-white/60 backdrop-blur-md border border-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-sm overflow-hidden transition-all duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.1)]">
+    <div className="group relative bg-white/60 backdrop-blur-sm border border-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-sm overflow-hidden transition-shadow duration-300 hover:shadow-[0_8px_32px_rgba(255,255,255,0.1)]">
       {isManager && (
         <AdminActionModal
           isOpen={showAdminModal}
@@ -515,7 +525,7 @@ export function AccordionPanel({
 
       {/* Accordion Content */}
       <div
-        className={`accordion-content overflow-hidden transition-all duration-500 linear ${accordionVisibilityClass}`}
+        className={`accordion-content overflow-hidden transition-[max-height,opacity] duration-300 ease-out will-change-[max-height,opacity] ${accordionVisibilityClass}`}
       >
         <div className="pb-4">
           <BoardTable type={title} applications={applications} highlightCount={
