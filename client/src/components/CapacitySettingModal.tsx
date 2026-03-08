@@ -41,7 +41,8 @@ export function CapacitySettingModal({
     }
     e.preventDefault();
 
-    const newCapacities: { 수?: number; 금?: number } = { ...currentCapacities };
+    // 선택된 요일의 정원만 전송 (다른 요일을 포함하면 중복 알림 발생)
+    const newCapacities: { 수?: number; 금?: number } = {};
 
     if (currentDay === '수') {
       if (wednesday) {
