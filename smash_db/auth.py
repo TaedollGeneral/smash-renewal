@@ -182,6 +182,64 @@ def login():
 
     return jsonify({'message': '아이디 또는 비밀번호가 올바르지 않습니다.'}), 401
 
+@auth_bp.route('/api/force-reset-password', methods=['POST'])
+@token_required
+@rate_limit(max_requests=5, window_seconds=60)
+def force_reset_password():
+    """매니저 전용: 대상 회원의 비밀번호를 강제로 변경한다.
+
+    현재 비밀번호 검증 대신 요청자의 role이 'manager'인지 확인한다.
+    비밀번호 변경 후 대상 회원의 token_version이 증가하여
+    해당 회원의 모든 기존 토큰이 즉시 무효화된다.
+
+    Request Headers:
+        Authorization: Bearer <JWT>  (manager 권한 필요)
+
+    Request Body (JSON):
+        target_id    (str): 비밀번호를 변경할 대상 회원의 학번
+        new_password (str): 설정할 새 비밀번호 평문
+
+    Responses:
+        200: 비밀번호 변경 성공
+        400: 필수 필드 누락 / 유효성 검사 실패
+        403: 매니저 권한이 아닌 경우
+        404: 대상 회원이 존재하지 않는 경우
+        500: DB 갱신 실패
+    """
+    # 매니저 권한 검증
+    if request.current_user.get('role') != 'manager':
+        return jsonify({'message': '임원진만 사용할 수 있는 기능입니다.'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': '요청 데이터가 없습니다.'}), 400
+
+    target_id = data.get('target_id')
+    new_password = data.get('new_password')
+
+    if not target_id or not new_password:
+        return jsonify({'message': 'target_id와 new_password를 모두 입력해주세요.'}), 400
+
+    if len(new_password) < 4:
+        return jsonify({'message': '새 비밀번호는 4자 이상이어야 합니다.'}), 400
+
+    # 대상 회원 존재 여부 확인
+    conn = get_db_connection()
+    target_user = conn.execute(
+        'SELECT student_id FROM users WHERE student_id = ?', (target_id,)
+    ).fetchone()
+    conn.close()
+
+    if target_user is None:
+        return jsonify({'message': '해당 회원을 찾을 수 없습니다.'}), 404
+
+    # update_password 재사용: 해시 갱신 + token_version 증가 (기존 토큰 즉시 무효화)
+    if not update_password(target_id, new_password):
+        return jsonify({'message': '비밀번호 변경에 실패했습니다.'}), 500
+
+    return jsonify({'message': f'{target_id} 회원의 비밀번호가 성공적으로 변경되었습니다.'}), 200
+
+
 @auth_bp.route('/api/change-password', methods=['POST'])
 @token_required
 @rate_limit(max_requests=3, window_seconds=60)
