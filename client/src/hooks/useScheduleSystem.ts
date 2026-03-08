@@ -58,12 +58,22 @@ function toFrontendStatus(raw: string): Status {
   return BACKEND_STATUS_MAP[raw] ?? Status.CLOSED;
 }
 
+// ── 토큰 유무 확인 헬퍼 ────────────────────────────────
+function getToken(): string | null {
+  return localStorage.getItem('smash_token');
+}
+
 // ── API 헬퍼 (App.tsx에서 쓸 수 있도록 export 추가!) ─────
 export async function fetchBoardData(category: Category): Promise<{
   status: Status;
   applications: BoardEntry[];
 }> {
-  const response = await fetch(`/api/board-data?category=${category}`);
+  const token = getToken();
+  if (!token) throw new Error('로그인이 필요합니다.');
+
+  const response = await fetch(`/api/board-data?category=${category}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!response.ok) {
     throw new Error(`board-data 조회 실패: ${response.status}`);
   }
@@ -79,7 +89,12 @@ export async function fetchBoardData(category: Category): Promise<{
  * 기존 7개 개별 요청(fetchBoardData × 7)을 대체하여 서버 부하를 ~85% 감소시킨다.
  */
 export async function fetchAllBoardData(): Promise<Record<string, BoardEntry[]>> {
-  const response = await fetch('/api/all-boards');
+  const token = getToken();
+  if (!token) throw new Error('로그인이 필요합니다.');
+
+  const response = await fetch('/api/all-boards', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!response.ok) {
     throw new Error(`all-boards 조회 실패: ${response.status}`);
   }

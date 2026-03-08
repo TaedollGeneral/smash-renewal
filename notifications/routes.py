@@ -22,6 +22,7 @@ notif_bp = Blueprint('notifications', __name__)
 # ── GET /api/vapid-public-key ─────────────────────────────────────────────────
 
 @notif_bp.route('/api/vapid-public-key', methods=['GET'])
+@token_required
 def vapid_public_key():
     """VAPID 공개 키를 반환한다 (인증 불필요 — 공개 정보).
 
