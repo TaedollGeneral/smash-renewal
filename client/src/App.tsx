@@ -341,6 +341,13 @@ function App() {
         }
         return merged;
       });
+
+      // 정원 확정 후 알림 상태(confirmed 플래그) 즉시 갱신
+      // — 이 호출이 없으면 notifStatus.wed/fri_confirmed가 false로 남아
+      //   벨 버튼이 비활성 상태를 유지하여 사용자가 카테고리 알림을 구독할 수 없음
+      if (token) {
+        fetchNotifStatus(token);
+      }
     } catch (error) {
       console.error('[정원 확정] API 호출 실패:', error);
       alert(error instanceof Error ? error.message : '정원 확정에 실패했습니다.');
