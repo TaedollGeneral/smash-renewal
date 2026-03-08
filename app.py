@@ -51,22 +51,27 @@ migrate_token_version_column()
 from admin.capacity.store import init_cache as init_capacity_cache
 init_capacity_cache()
 
-# 게시판: SQLite applications 테이블 초기화 + 레거시 백업 마이그레이션 + 주간 리셋
+# 게시판: SQLite applications 테이블 초기화 + 레거시 백업 마이그레이션
 from time_control.board_store import ensure_table, load_from_backup
-from time_control.scheduler_logic import start_reset_scheduler
 
 ensure_table()         # applications 테이블 생성 (없을 때만)
 load_from_backup()     # board_backup.json → SQLite 일회성 마이그레이션
-start_reset_scheduler(KST)
 
-# 푸시 알림: SQLite 테이블 초기화 + 백그라운드 발송 워커 시작
+# 푸시 알림: SQLite 테이블 초기화
 from notifications.store import init_db as init_push_db
-from notifications.sender import start_push_worker
-
 init_push_db()
-start_push_worker()
+
+# 백그라운드 데몬 스레드 (주간 리셋 스케줄러 + 푸시 발송 워커)
+# ──────────────────────────────────────────────────────────────────────────────
+# preload_app=True (gunicorn.conf.py) 환경에서는 이 모듈이 fork() 전 마스터에서 로드되며,
+# POSIX fork()는 스레드를 자식 프로세스에 복사하지 않는다.
+# → Gunicorn: gunicorn.conf.py의 post_fork 훅에서 워커별로 시작
+# → 개발 서버: if __name__ == '__main__' 에서 직접 시작
 
 if __name__ == '__main__':
-    # 프로덕션: gunicorn -w 2 --threads 4 app:app
     # 개발 환경 전용 — 로컬 테스트 시에만 사용
+    from time_control.scheduler_logic import start_reset_scheduler
+    from notifications.sender import start_push_worker
+    start_reset_scheduler(KST)
+    start_push_worker()
     app.run(host='127.0.0.1', port=5000, debug=True)

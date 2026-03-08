@@ -84,15 +84,6 @@ def _create_session() -> requests.Session:
 
 _session: requests.Session = _create_session()
 
-# HTTPAdapter: 1GB 서버 환경에 맞게 pool_connections/pool_maxsize 보수적으로 설정
-_adapter = requests.adapters.HTTPAdapter(
-    pool_connections=4,
-    pool_maxsize=10,
-    max_retries=1,          # 네트워크 에러 시 1회 자동 재시도
-)
-_session.mount("https://", _adapter)
-_session.mount("http://", _adapter)
-
 
 # ── 공개 API ──────────────────────────────────────────────────────────────────
 

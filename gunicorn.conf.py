@@ -34,3 +34,24 @@ loglevel = "warning"         # 일반 운영: warning 이상만 출력
 # ── 프로세스 ─────────────────────────────────────────────────────────────────────
 preload_app = True           # 앱을 미리 로드하여 워커 간 메모리 공유 (Copy-on-Write)
                              # → 2 워커 기준 ~20-30 MB 절약
+
+
+# ── post_fork: 워커별 데몬 스레드 시작 ─────────────────────────────────────────
+# preload_app=True 시 app.py 모듈은 fork() 전 마스터에서 한 번만 로드된다.
+# POSIX fork()는 스레드를 자식 프로세스에 복사하지 않으므로,
+# 데몬 스레드(주간 리셋 스케줄러, 푸시 발송 워커)는 각 워커에서 새로 시작해야 한다.
+#
+# 단, 주간 리셋 스케줄러(weekly-reset)는 워커 1개에서만 실행한다.
+# 2개 워커가 동시에 리셋하면 로그 중복 · 이중 처리 위험이 있으므로
+# worker.nr == 0 (첫 번째 워커)에서만 시작한다.
+def post_fork(server, worker):
+    from notifications.sender import start_push_worker
+
+    # 푸시 워커: 모든 워커에서 시작 (자기 프로세스 큐 소비)
+    start_push_worker()
+
+    # 주간 리셋 스케줄러: 워커 0에서만 시작 (중복 실행 방지)
+    if worker.nr == 0:
+        from time_control.time_handler import KST
+        from time_control.scheduler_logic import start_reset_scheduler
+        start_reset_scheduler(KST)
