@@ -44,6 +44,9 @@ app.use((req, res, next) => {
     // - body 재직렬화를 하지 않으므로 Buffer.byteLength 관련 크래시가 원천 차단됨
     // - Content-Type(JSON, form-data 등)에 관계없이 모든 요청을 원본 그대로 전달함
     // - Content-Length 등 원본 헤더가 변조 없이 Flask에 그대로 전달됨
+    // 실제 클라이언트 IP를 Flask에 전달 (Rate Limiter가 IP를 정확히 식별하기 위함)
+    const clientIp = req.ip || req.socket.remoteAddress || '0.0.0.0';
+
     const options = {
         hostname: '127.0.0.1',
         port: FLASK_PORT,
@@ -52,6 +55,7 @@ app.use((req, res, next) => {
         headers: {
             ...req.headers,
             host: `127.0.0.1:${FLASK_PORT}`,
+            'x-forwarded-for': clientIp,
         },
     };
 

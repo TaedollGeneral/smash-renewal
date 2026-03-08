@@ -12,6 +12,21 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise RuntimeError("환경변수 SECRET_KEY가 설정되지 않았습니다. 서버를 시작할 수 없습니다.")
 
+# [보안] 요청 Body 크기 제한 — 대용량 JSON 폭탄으로 인한 메모리 고갈 방지
+# 일반 신청/로그인 JSON은 1 KB 미만이므로 1 MB면 충분
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1 MB
+
+# --- [글로벌 IP Rate Limit] ---
+# 모든 엔드포인트 진입 전에 IP당 분당 요청 수를 검사한다.
+# 비정상적으로 많은 요청을 보내는 IP를 조기에 차단하여 서버 리소스를 보호한다.
+from time_control.rate_limiter import check_global_ip_limit
+from flask import jsonify as _jsonify
+
+@app.before_request
+def _global_ip_guard():
+    if check_global_ip_limit():
+        return _jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."}), 429
+
 # --- [모듈 등록 구역] ---
 from smash_db.auth import auth_bp, migrate_token_version_column
 app.register_blueprint(auth_bp)
