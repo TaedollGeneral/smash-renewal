@@ -135,10 +135,12 @@ def admin_cancel():
 # ── 현황 조회 ─────────────────────────────────────────────────────────────────
 
 @application_bp.route('/api/board-data', methods=['GET'])
+@rate_limit(max_requests=30, window_seconds=10)
 def get_status():
     """현황 조회 API — 현재 상태와 신청 목록 반환
 
     2초 폴링 대상 엔드포인트. 인메모리에서 즉시 응답한다.
+    Rate Limit: IP당 10초 내 30회 (2초 폴링 기준 충분히 여유)
     """
     category = request.args.get('category')
 
@@ -163,6 +165,7 @@ def get_status():
 
 
 @application_bp.route('/api/all-boards', methods=['GET'])
+@rate_limit(max_requests=15, window_seconds=10)
 def get_all_statuses():
     """전체 카테고리 현황 일괄 조회 API
 
