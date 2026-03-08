@@ -31,11 +31,38 @@ export function ForcePasswordResetModal({ isOpen, onClose, user }: ForcePassword
         setError('');
         if (!isValid) return;
 
+        const token = localStorage.getItem('smash_token');
+        if (!token) {
+            setError('로그인이 필요합니다.');
+            return;
+        }
+
         setIsLoading(true);
-        // 실서버 연동 시 아래 setTimeout을 실제 API 호출로 교체
-        await new Promise(res => setTimeout(res, 1000));
-        setIsLoading(false);
-        setIsSuccess(true);
+        try {
+            const res = await fetch('/api/force-reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    target_id: targetId.trim(),
+                    new_password: newPassword,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setIsSuccess(true);
+            } else {
+                setError(data.message || '비밀번호 변경에 실패했습니다.');
+            }
+        } catch {
+            setError('서버에 연결할 수 없습니다.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleClose = () => {
