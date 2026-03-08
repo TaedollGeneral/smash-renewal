@@ -67,7 +67,9 @@ export function usePushNotifications() {
       const registration = await navigator.serviceWorker.ready;
 
       // ⑤ VAPID 공개 키 조회 (백엔드에서 동적으로 가져오기)
-      const keyRes = await fetch('/api/vapid-public-key');
+      const keyRes = await fetch('/api/vapid-public-key', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!keyRes.ok) {
         console.warn('[Push] VAPID 공개 키 조회 실패 (status:', keyRes.status, ')');
         return;

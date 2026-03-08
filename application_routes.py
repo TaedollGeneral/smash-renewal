@@ -135,6 +135,7 @@ def admin_cancel():
 # ── 현황 조회 ─────────────────────────────────────────────────────────────────
 
 @application_bp.route('/api/board-data', methods=['GET'])
+@token_required
 @rate_limit(max_requests=30, window_seconds=10)
 def get_status():
     """현황 조회 API — 현재 상태와 신청 목록 반환
@@ -165,6 +166,7 @@ def get_status():
 
 
 @application_bp.route('/api/all-boards', methods=['GET'])
+@token_required
 @rate_limit(max_requests=15, window_seconds=10)
 def get_all_statuses():
     """전체 카테고리 현황 일괄 조회 API

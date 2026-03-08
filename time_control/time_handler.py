@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request, jsonify
 
+from smash_db.auth import token_required
 from .scheduler_logic import (
     Category,
     Status,
@@ -60,6 +61,7 @@ _CATEGORY_MAP: list[tuple[str, str, str]] = [
 # ── 역할 1: Query — 프론트엔드 폴링 응답 ──────────────────────────────────────
 
 @time_bp.route("/api/category-states", methods=["GET"])
+@token_required
 def get_category_states():
     """카테고리별 현재 상태와 마감 타임스탬프를 반환한다.
 
@@ -106,6 +108,7 @@ def get_category_states():
 
 
 @time_bp.route("/api/capacities", methods=["GET"])
+@token_required
 def get_capacities():
     """운동 정원을 상세 포맷으로 반환한다.
 

@@ -170,6 +170,7 @@ function App() {
 
   // ⭐️ 배치 API: 7개 개별 요청 → 1회 /api/all-boards 호출로 통합
   const fetchAllBoards = useCallback(async () => {
+    if (!localStorage.getItem('smash_token')) return;
     try {
       const allData = await fetchAllBoardData();
       setAllApplications(allData);
@@ -179,14 +180,18 @@ function App() {
     }
   }, []);
 
-  // ⭐️ 초기 1회 로드 (마운트 시)
+  // ⭐️ 초기 1회 로드 (로그인 시)
   useEffect(() => {
-    fetchAllBoards();
-  }, [fetchAllBoards]);
+    if (user) fetchAllBoards();
+  }, [user, fetchAllBoards]);
 
   const fetchCapacities = useCallback(async () => {
+    const token = localStorage.getItem('smash_token');
+    if (!token) return;
     try {
-      const response = await fetch(`/api/capacities`);
+      const response = await fetch(`/api/capacities`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
@@ -200,8 +205,12 @@ function App() {
   // ─── 2. 카운트다운/상태 fetch (실제 서버 호출) ──────────────────────────────
   // 폴링: 5분에 한번 + soft refresh + 카운트다운 종료 시
   const fetchCategoryStates = useCallback(async () => {
+    const token = localStorage.getItem('smash_token');
+    if (!token) return;
     try {
-      const response = await fetch(`/api/category-states`);
+      const response = await fetch(`/api/category-states`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
@@ -215,19 +224,21 @@ function App() {
   // ─── 폴링 인터벌 설정 ───────────────────────────────────────────────────────
   // 게시판 현황 폴링은 각 AccordionPanel 내 useScheduleSystem 훅이 담당
 
-  // 정원: 10분마다
+  // 정원: 10분마다 (로그인 상태에서만)
   useEffect(() => {
+    if (!user) return;
     fetchCapacities();
     const id = setInterval(fetchCapacities, 10 * 60 * 1000);
     return () => clearInterval(id);
-  }, [fetchCapacities]);
+  }, [user, fetchCapacities]);
 
-  // 카운트다운/상태: 5분마다
+  // 카운트다운/상태: 5분마다 (로그인 상태에서만)
   useEffect(() => {
+    if (!user) return;
     fetchCategoryStates();
     const id = setInterval(fetchCategoryStates, 5 * 60 * 1000);
     return () => clearInterval(id);
-  }, [fetchCategoryStates]);
+  }, [user, fetchCategoryStates]);
 
   // ─── 카운트다운 0 도달 시 핸들러 (디바운스 + 랜덤 지터) ─────────────────────
   // 동일 정각에 여러 패널이 동시에 카운트다운 0에 도달하면 중복 호출 방지 (2초 디바운스).
@@ -407,65 +418,78 @@ function App() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Pull-to-refresh indicator */}
-          <div
-            className="absolute top-0 left-0 right-0 flex items-center justify-center overflow-hidden transition-all duration-200"
-            style={{
-              height: `${pullDistance}px`,
-              opacity: isPulling || isRefreshing ? 1 : 0,
-            }}
-          >
-            <div className="flex items-center gap-2 text-white">
-              <svg
-                className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
+          {!user ? (
+            /* 비로그인 상태: 로그인 안내 */
+            <div className="flex flex-col items-center justify-center h-full text-white/80 px-6">
+              <svg className="w-16 h-16 mb-4 opacity-60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
-              <span className="text-sm font-medium">
-                {isRefreshing
-                  ? '새로고침 중...'
-                  : pullDistance > 60
-                    ? '놓아서 새로고침'
-                    : '아래로 당겨서 새로고침'}
-              </span>
+              <p className="text-lg font-semibold mb-1">로그인이 필요합니다</p>
+              <p className="text-sm text-white/60">좌측 상단 메뉴에서 로그인해주세요.</p>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Pull-to-refresh indicator */}
+              <div
+                className="absolute top-0 left-0 right-0 flex items-center justify-center overflow-hidden transition-all duration-200"
+                style={{
+                  height: `${pullDistance}px`,
+                  opacity: isPulling || isRefreshing ? 1 : 0,
+                }}
+              >
+                <div className="flex items-center gap-2 text-white">
+                  <svg
+                    className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span className="text-sm font-medium">
+                    {isRefreshing
+                      ? '새로고침 중...'
+                      : pullDistance > 60
+                        ? '놓아서 새로고침'
+                        : '아래로 당겨서 새로고침'}
+                  </span>
+                </div>
+              </div>
 
-          <div
-            className="flex flex-col gap-2 p-2 pb-20"
-            style={{
-              transform: `translateY(${isPulling || isRefreshing ? pullDistance : 0}px)`,
-              transition: isPulling ? 'none' : 'transform 0.3s ease-out',
-            }}
-          >
-            {accordionPanels[currentDay].map((panel) => (
-              <AccordionPanel
-                key={`${currentDay}-${panel}`}
-                title={panel}
-                isExpanded={expandedPanels.has(panel)}
-                onToggle={() => togglePanel(panel)}
-                dayType={currentDay}
-                user={user}
-                capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
-                categoryState={categoryStates[currentDay][panel]}
-                onCountdownZero={() => handleCountdownZero(currentDay, panel)}
-                allApplications={allApplications}
-                onActionSuccess={fetchAllBoards}
-                notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
-                notifPrefs={notifStatus?.prefs ?? {}}
-                onNotifToggle={handleNotifToggle}
-              />
-            ))}
-          </div>
+              <div
+                className="flex flex-col gap-2 p-2 pb-20"
+                style={{
+                  transform: `translateY(${isPulling || isRefreshing ? pullDistance : 0}px)`,
+                  transition: isPulling ? 'none' : 'transform 0.3s ease-out',
+                }}
+              >
+                {accordionPanels[currentDay].map((panel) => (
+                  <AccordionPanel
+                    key={`${currentDay}-${panel}`}
+                    title={panel}
+                    isExpanded={expandedPanels.has(panel)}
+                    onToggle={() => togglePanel(panel)}
+                    dayType={currentDay}
+                    user={user}
+                    capacity={capacities[currentDay]?.details?.[panel as keyof CapacityDetails]}
+                    categoryState={categoryStates[currentDay][panel]}
+                    onCountdownZero={() => handleCountdownZero(currentDay, panel)}
+                    allApplications={allApplications}
+                    onActionSuccess={fetchAllBoards}
+                    notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
+                    notifPrefs={notifStatus?.prefs ?? {}}
+                    onNotifToggle={handleNotifToggle}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
       </div>
