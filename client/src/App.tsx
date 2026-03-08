@@ -320,9 +320,16 @@ function App() {
         throw new Error(data.error ?? '정원 확정에 실패했습니다.');
       }
 
-      // 서버 응답의 상세 포맷 데이터로 상태 업데이트
+      // 서버 응답의 상세 포맷 데이터를 기존 상태에 병합
+      // (한쪽 요일만 전송 시 다른 요일이 null로 올 수 있으므로 덮어쓰기 방지)
       const data = await response.json();
-      setCapacities(data.capacities);
+      setCapacities(prev => {
+        const merged = { ...prev };
+        for (const [day, value] of Object.entries(data.capacities)) {
+          if (value != null) merged[day] = value;
+        }
+        return merged;
+      });
     } catch (error) {
       console.error('[정원 확정] API 호출 실패:', error);
       alert(error instanceof Error ? error.message : '정원 확정에 실패했습니다.');
