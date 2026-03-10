@@ -12,11 +12,11 @@ interface AdminActionModalProps {
   /** 어떤 버튼을 눌러 열었는지 — '신청'이면 추가, '취소'이면 삭제 */
   actionType: '신청' | '취소';
   /**
-   * 확인 시 호출되는 콜백.
+   * 확인 시 호출되는 콜백 (async 지원).
    * - 게스트/잔여석 신청: (targetUserId, guestName) — 이름은 게시판 표시용
    * - 그 외 신청 및 모든 취소: (targetUserId) — 이름은 백엔드 DB 조회
    */
-  onSubmit: (targetUserId: string, guestName?: string) => void;
+  onSubmit: (targetUserId: string, guestName?: string) => void | Promise<void>;
 }
 
 export function AdminActionModal({
@@ -29,12 +29,14 @@ export function AdminActionModal({
 }: AdminActionModalProps) {
   const [userId, setUserId] = useState('');
   const [guestName, setGuestName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 열릴 때마다 인풋 초기화
   useEffect(() => {
     if (isOpen) {
       setUserId('');
       setGuestName('');
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
@@ -57,7 +59,7 @@ export function AdminActionModal({
     : 'bg-red-500 hover:bg-red-600 active:bg-red-700 text-white';
   const ringColor = isAdd ? 'focus:ring-[#1C5D99]' : 'focus:ring-red-400';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId.trim()) {
       alert('대상자 ID를 입력해주세요.');
@@ -67,10 +69,17 @@ export function AdminActionModal({
       alert('게시판에 표시될 이름을 입력해주세요.');
       return;
     }
-    onSubmit(userId.trim(), showNameInput ? guestName.trim() : undefined);
-    setUserId('');
-    setGuestName('');
-    onClose();
+    // [버그 수정] onSubmit이 async일 경우 응답을 기다린 후 모달을 닫아야 함.
+    // 기존: await 없이 즉시 onClose() → 409 에러 alert을 사용자가 놓침.
+    setIsSubmitting(true);
+    try {
+      await onSubmit(userId.trim(), showNameInput ? guestName.trim() : undefined);
+    } finally {
+      setIsSubmitting(false);
+      setUserId('');
+      setGuestName('');
+      onClose();
+    }
   };
 
   const handleClose = () => {
@@ -159,9 +168,10 @@ export function AdminActionModal({
             </button>
             <button
               type="submit"
-              className={`flex-1 px-4 py-2.5 rounded-lg transition-colors text-sm font-bold ${btnColor}`}
+              disabled={isSubmitting}
+              className={`flex-1 px-4 py-2.5 rounded-lg transition-colors text-sm font-bold ${btnColor} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {actionLabel} 확인
+              {isSubmitting ? '처리 중...' : `${actionLabel} 확인`}
             </button>
           </div>
         </form>
