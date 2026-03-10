@@ -29,16 +29,19 @@ _MAX_KEYS = 5000
 def _get_real_ip() -> str:
     """Node.js 프록시가 전달한 X-Forwarded-For 헤더에서 실제 클라이언트 IP를 추출한다.
 
-    gunicorn.conf.py의 forwarded_allow_ips = "127.0.0.1" 설정으로
-    신뢰할 수 있는 프록시(Node.js)에서만 이 헤더를 수용한다.
-    헤더 스푸핑 방지: Node.js가 항상 자체적으로 X-Forwarded-For를 덮어쓰므로
-    클라이언트가 직접 이 헤더를 조작해도 무시된다.
+    보안 설계:
+      - Gunicorn은 127.0.0.1(Node.js)에서만 접근 가능 (bind = "127.0.0.1:5000")
+      - Node.js가 X-Forwarded-For를 req.ip로 덮어쓰므로 클라이언트 조작 불가
+      - 추가 방어: request.remote_addr이 127.0.0.1(프록시)인 경우에만 X-Forwarded-For 신뢰
+        → 만약 Flask가 직접 외부에 노출되면 IP 스푸핑 차단
     """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # "client_ip, proxy1, proxy2" 형식 → 첫 번째가 실제 클라이언트
-        return forwarded.split(",")[0].strip()
-    return request.remote_addr or "0.0.0.0"
+    # Node.js 프록시를 거쳐온 요청만 X-Forwarded-For를 신뢰
+    remote = request.remote_addr or "0.0.0.0"
+    if remote in ("127.0.0.1", "::1"):
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return remote
 
 
 def _cleanup(window: float) -> None:

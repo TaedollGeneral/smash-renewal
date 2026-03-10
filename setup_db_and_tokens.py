@@ -39,7 +39,6 @@ with app.app_context():
     SECRET_KEY = app.config['SECRET_KEY']
 
 print(f"  SECRET_KEY 확보 완료 (길이: {len(SECRET_KEY)}자)")
-print(f"  SECRET_KEY 앞8자: {SECRET_KEY[:8]}...")
 print(f"  [확인] 운영 Flask 프로세스와 이 값이 동일해야 토큰이 유효합니다.")
 
 # ── Phase 2: DB 유저 세팅 ─────────────────────────────────────────────────
