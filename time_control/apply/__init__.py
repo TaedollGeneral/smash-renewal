@@ -136,7 +136,15 @@ def handle_apply(category: str) -> tuple[dict, int]:
         }
 
     # Step 5: Redis 큐에 즉시 밀어넣기 (DB 쓰기 대기 없음, Lock 없음)
-    _redis_client.lpush(_QUEUE_KEY, json.dumps(entry, ensure_ascii=False))
+    # Redis 장애 시 SQLite 직접 쓰기로 폴백하여 서비스 가용성을 보장한다.
+    try:
+        _redis_client.lpush(_QUEUE_KEY, json.dumps(entry, ensure_ascii=False))
+    except Exception:
+        # Redis 장애 → SQLite 직접 INSERT (매니저 대리 신청과 동일 경로)
+        from ..board_store import apply_entry as _direct_apply
+        success, reason = _direct_apply(category, entry)
+        if not success:
+            return {"error": reason}, 409
 
     # Step 6: 즉시 200 OK 반환
     return {"message": "신청이 접수되었습니다.", "timestamp": ts}, 200
