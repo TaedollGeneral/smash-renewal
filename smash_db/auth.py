@@ -124,6 +124,19 @@ def verify_password(student_id: str, current_password: str) -> bool:
     )
 
 
+def _validate_password(password: str) -> str | None:
+    """비밀번호 정책 검증. 위반 시 오류 메시지를 반환, 통과 시 None."""
+    if len(password) < 8:
+        return '새 비밀번호는 8자 이상이어야 합니다.'
+    if len(password) > 72:
+        return '비밀번호는 72자 이하여야 합니다.'  # bcrypt 제한
+    has_letter = any(c.isalpha() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    if not (has_letter and has_digit):
+        return '비밀번호는 영문자와 숫자를 모두 포함해야 합니다.'
+    return None
+
+
 def update_password(student_id: str, new_password: str) -> bool:
     """새 비밀번호를 bcrypt로 해시하여 DB를 갱신하고, token_version을 +1 증가시킨다.
 
@@ -157,6 +170,10 @@ def login():
 
     if not user_id or not user_pw:
         return jsonify({'message': '아이디와 비밀번호를 입력해주세요.'}), 400
+
+    # [보안] 입력 길이 제한 — 비정상적으로 긴 문자열로 인한 CPU 낭비 방지
+    if len(user_id) > 50 or len(user_pw) > 72:
+        return jsonify({'message': '아이디 또는 비밀번호가 올바르지 않습니다.'}), 401
 
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE student_id = ?', (user_id,)).fetchone()
@@ -220,8 +237,9 @@ def force_reset_password():
     if not target_id or not new_password:
         return jsonify({'message': 'target_id와 new_password를 모두 입력해주세요.'}), 400
 
-    if len(new_password) < 4:
-        return jsonify({'message': '새 비밀번호는 4자 이상이어야 합니다.'}), 400
+    pw_error = _validate_password(new_password)
+    if pw_error:
+        return jsonify({'message': pw_error}), 400
 
     # 대상 회원 존재 여부 확인
     conn = get_db_connection()
@@ -269,8 +287,9 @@ def change_password():
     if not current_password or not new_password:
         return jsonify({'message': 'current_password와 new_password를 모두 입력해주세요.'}), 400
 
-    if len(new_password) < 4:
-        return jsonify({'message': '새 비밀번호는 4자 이상이어야 합니다.'}), 400
+    pw_error = _validate_password(new_password)
+    if pw_error:
+        return jsonify({'message': pw_error}), 400
 
     student_id = request.current_user['id']
 

@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
-const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
 
@@ -9,27 +8,41 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FLASK_PORT = process.env.FLASK_PORT || 5000;
 
-// 미들웨어 설정
-app.use(cors());
+// [보안] CORS — 허용 출처를 운영 도메인으로 제한
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+app.use(cors({
+    origin: ALLOWED_ORIGINS.length > 0
+        ? (origin, cb) => {
+            // 동일 출처(origin === undefined) 또는 허용 목록에 포함된 출처만 허용
+            if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+                cb(null, true);
+            } else {
+                cb(new Error('CORS 정책에 의해 차단되었습니다.'));
+            }
+        }
+        : false,  // ALLOWED_ORIGINS 미설정 시 동일 출처만 허용
+    credentials: true,
+}));
 // express.json()을 전역 미들웨어로 등록하지 않음.
 // Flask 프록시는 req를 raw 스트림 그대로 전달하므로, body를 미리 파싱하면
 // 스트림이 소비되어 Flask로 재전송이 불가능해지고 서버 크래시의 원인이 됨.
 
-// 정적 파일 경로를 React 빌드 폴더(client/dist)로 설정
-app.use(express.static(path.join(__dirname, 'client/dist')));
-
-// DB 연결 풀 생성
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+// [보안] HTTP 보안 헤더 — XSS, 클릭재킹, MIME 스니핑 방지
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    // HSTS는 Nginx/로드밸런서에서 설정 권장 (HTTPS 종단점)
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
 });
 
-const promisePool = pool.promise();
+// 정적 파일 경로를 React 빌드 폴더(client/dist)로 설정
+app.use(express.static(path.join(__dirname, 'client/dist')));
 
 // ── Flask 리버스 프록시 ────────────────────────────────────────────────────────
 // /api/* 와 Flask Blueprint 경로들을 127.0.0.1:5000(Flask)으로 전달한다.
@@ -47,15 +60,23 @@ app.use((req, res, next) => {
     // 실제 클라이언트 IP를 Flask에 전달 (Rate Limiter가 IP를 정확히 식별하기 위함)
     const clientIp = req.ip || req.socket.remoteAddress || '0.0.0.0';
 
+    // [보안] 클라이언트가 보낸 프록시 관련 헤더를 제거하고 신뢰할 수 있는 값만 설정
+    const sanitizedHeaders = { ...req.headers };
+    delete sanitizedHeaders['x-forwarded-for'];
+    delete sanitizedHeaders['x-forwarded-host'];
+    delete sanitizedHeaders['x-forwarded-proto'];
+    delete sanitizedHeaders['x-real-ip'];
+
     const options = {
         hostname: '127.0.0.1',
         port: FLASK_PORT,
         path: req.url,
         method: req.method,
         headers: {
-            ...req.headers,
+            ...sanitizedHeaders,
             host: `127.0.0.1:${FLASK_PORT}`,
             'x-forwarded-for': clientIp,
+            'x-forwarded-proto': req.protocol,
         },
     };
 
@@ -75,7 +96,7 @@ app.use((req, res, next) => {
         proxy.destroy();
         if (!res.headersSent) {
             res.writeHead(504, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Flask 서버 응답 시간 초과' }));
+            res.end(JSON.stringify({ error: '서버 응답 시간 초과' }));
         }
     });
 
@@ -83,7 +104,7 @@ app.use((req, res, next) => {
         console.error('[Flask proxy error]', err.message);
         if (!res.headersSent) {
             res.writeHead(502, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Flask 서버에 연결할 수 없습니다.' }));
+            res.end(JSON.stringify({ error: '서버에 연결할 수 없습니다.' }));
         }
     });
 
