@@ -39,7 +39,7 @@ _QUEUE_KEY = "apply_queue"
 _UNIQUE_APPLY_CATEGORIES = {"WED_REGULAR", "FRI_REGULAR", "WED_LESSON"}
 
 # ── SQLite 경로 ──────────────────────────────────────────────────────────────
-_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _DB_PATH = os.path.join(_BASE_DIR, "smash_db", "users.db")
 
 # ── Redis 연결 ────────────────────────────────────────────────────────────────
