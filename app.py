@@ -27,6 +27,19 @@ def _global_ip_guard():
     if check_global_ip_limit():
         return _jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."}), 429
 
+# --- [API 전역 에러 핸들러] ---
+# Flask 기본 에러 핸들러는 HTML을 반환하지만, /api/ 경로에서는 클라이언트가
+# JSON을 기대하므로 미처리 예외 발생 시 JSON 형태의 500 응답을 반환한다.
+from flask import request as _request
+
+@app.errorhandler(500)
+def _handle_500(e):
+    return _jsonify({"error": "서버 내부 오류가 발생했습니다."}), 500
+
+@app.errorhandler(Exception)
+def _handle_exception(e):
+    return _jsonify({"error": "서버 내부 오류가 발생했습니다."}), 500
+
 # --- [모듈 등록 구역] ---
 from smash_db.auth import auth_bp, migrate_token_version_column
 app.register_blueprint(auth_bp)
