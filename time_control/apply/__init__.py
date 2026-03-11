@@ -43,13 +43,16 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 _DB_PATH = os.path.join(_BASE_DIR, "smash_db", "users.db")
 
 # ── Redis 연결 ────────────────────────────────────────────────────────────────
-# Gunicorn fork 이후 각 워커가 독립적으로 연결을 생성한다.
-# redis-py는 lazy connection이므로 모듈 레벨 초기화가 안전하다.
+# preload_app=True(Gunicorn) 환경에서는 모듈이 fork() 전 마스터에서 로드된다.
+# redis-py ConnectionPool의 내부 Lock은 fork 후 정의되지 않은 상태가 될 수 있으므로
+# socket_timeout을 설정하여 hang을 방지하고, 장애 시 SQLite 폴백으로 전환한다.
 _redis_client = redis.Redis(
     host=os.environ.get("REDIS_HOST", "127.0.0.1"),
     port=int(os.environ.get("REDIS_PORT", 6379)),
     db=int(os.environ.get("REDIS_DB", 0)),
     decode_responses=True,
+    socket_timeout=5,
+    socket_connect_timeout=3,
 )
 
 
@@ -66,16 +69,22 @@ def _is_already_applied(category: str, user_id: str) -> bool:
 
     UNIQUE(category, user_id) 인덱스를 활용하므로 ~0.3ms 이내로 완료된다.
     WAL 모드에서 읽기는 쓰기와 비블로킹이므로 worker와 경합하지 않는다.
+
+    SQLite 장애 시 False를 반환하여 신청을 시도한다.
+    → UNIQUE 제약이 최종 안전망으로 중복을 차단하므로 데이터 정합성에 영향 없음.
     """
-    conn = sqlite3.connect(_DB_PATH, timeout=5)
     try:
-        row = conn.execute(
-            "SELECT 1 FROM applications WHERE category = ? AND user_id = ? LIMIT 1",
-            (category, user_id),
-        ).fetchone()
-        return row is not None
-    finally:
-        conn.close()
+        conn = sqlite3.connect(_DB_PATH, timeout=5)
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM applications WHERE category = ? AND user_id = ? LIMIT 1",
+                (category, user_id),
+            ).fetchone()
+            return row is not None
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return False
 
 
 def handle_apply(category: str) -> tuple[dict, int]:
