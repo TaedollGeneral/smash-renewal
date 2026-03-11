@@ -22,26 +22,18 @@
 import html
 import json
 import os
-import sqlite3
 import time
-from datetime import timedelta
 
 import redis
 from flask import request
 
+from ..board_store import is_already_applied, UNIQUE_APPLY_CATEGORIES
 from ..time_handler import validate_apply_time, _now_kst
 
 
 _GUEST_CATEGORIES = {"WED_GUEST", "FRI_GUEST", "WED_LEFTOVER", "FRI_LEFTOVER"}
 
 _QUEUE_KEY = "apply_queue"
-
-# ── 중복 신청 검증용 카테고리 (게스트 제외 — 동일 사용자 1회만 신청 가능) ──────
-_UNIQUE_APPLY_CATEGORIES = {"WED_REGULAR", "FRI_REGULAR", "WED_LESSON"}
-
-# ── SQLite 경로 ──────────────────────────────────────────────────────────────
-_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-_DB_PATH = os.path.join(_BASE_DIR, "smash_db", "users.db")
 
 # ── Redis 연결 ────────────────────────────────────────────────────────────────
 # preload_app=True(Gunicorn) 환경에서는 모듈이 fork() 전 마스터에서 로드된다.
@@ -63,46 +55,6 @@ def _is_guest_category(category: str) -> bool:
 
 def _sanitize_name(name: str) -> str:
     return html.escape(name, quote=True)
-
-
-def _week_start_timestamp() -> float:
-    """현재 시각 기준으로 이번 주 시작(토요일 00:00:00 KST)의 Unix timestamp를 반환한다."""
-    now = _now_kst()
-    days_since_saturday = (now.weekday() - 5) % 7
-    week_start = (now - timedelta(days=days_since_saturday)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    return week_start.timestamp()
-
-
-def _is_already_applied(category: str, user_id: str) -> bool:
-    """SQLite에서 이번 주에 해당 카테고리에 이미 신청했는지 확인한다.
-
-    이번 주 시작(토요일 00:00 KST) 이후 데이터만 검사한다.
-    → 주간 리셋 후 Redis 큐에 남아있던 이전 주 데이터가 재삽입되거나
-      리셋이 제때 실행되지 않아 이전 주 데이터가 남아있어도 오탐지하지 않는다.
-
-    UNIQUE(category, user_id) 인덱스를 활용하므로 ~0.3ms 이내로 완료된다.
-    WAL 모드에서 읽기는 쓰기와 비블로킹이므로 worker와 경합하지 않는다.
-
-    SQLite 장애 시 False를 반환하여 신청을 시도한다.
-    → UNIQUE 제약이 최종 안전망으로 중복을 차단하므로 데이터 정합성에 영향 없음.
-    """
-    try:
-        week_start_ts = _week_start_timestamp()
-        conn = sqlite3.connect(_DB_PATH, timeout=5)
-        try:
-            row = conn.execute(
-                "SELECT 1 FROM applications"
-                " WHERE category = ? AND user_id = ? AND timestamp >= ?"
-                " LIMIT 1",
-                (category, user_id, week_start_ts),
-            ).fetchone()
-            return row is not None
-        finally:
-            conn.close()
-    except Exception:
-        return False
 
 
 def handle_apply(category: str) -> tuple[dict, int]:
@@ -132,9 +84,10 @@ def handle_apply(category: str) -> tuple[dict, int]:
     if time_error:
         return {"error": time_error}, 400
 
-    # Step 3.5: 중복 신청 검증 (수요일 운동, 금요일 운동, 수요일 레슨)
-    if category in _UNIQUE_APPLY_CATEGORIES:
-        if _is_already_applied(category, user_id):
+    # Step 3.5: 중복 신청 검증 (WED_REGULAR, FRI_REGULAR, WED_LESSON)
+    # role 무관 — 카테고리 타입으로 결정. 게스트/잔여석은 중복 허용.
+    if category in UNIQUE_APPLY_CATEGORIES:
+        if is_already_applied(category, user_id):
             return {"error": "이미 신청되어 있습니다."}, 409
 
     # Step 4: 카테고리별 신청 항목 구성

@@ -7,12 +7,13 @@
 #
 # handle_admin_apply 처리 순서:
 #   1. role == 'manager' 검증 (실패 → 403)
-#   2. 시간 검증 없음 (의도적 생략)
+#   2. 시간 검증 없음 (의도적 생략 — 매니저만 면제)
 #   3. target_user_id → users.db 조회 → 실존 회원 이름 확인
 #   4. target_guest_name 유무로 entry 구성 분기
 #      - 있음(게스트/잔여석): name=회원이름, guest_name=게스트이름
 #      - 없음(운동/레슨): name=회원이름, type=member
-#   5. apply_entry() 원자적 조작 → is_board_changed = True
+#   5.5. 중복 신청 검증 (UNIQUE_APPLY_CATEGORIES 카테고리만, role 무관)
+#   6. apply_entry() 원자적 조작
 #
 # handle_admin_cancel 처리 순서:
 #   1. role == 'manager' 검증 (실패 → 403)
@@ -30,7 +31,7 @@ import time
 
 from flask import request
 
-from ..board_store import apply_entry, get_board, remove_entry
+from ..board_store import apply_entry, get_board, is_already_applied, remove_entry, UNIQUE_APPLY_CATEGORIES
 from ..cancel import _check_and_notify_vacancy
 
 
@@ -117,6 +118,12 @@ def handle_admin_apply(category: str) -> tuple[dict, int]:
             "type":      "member",
             "timestamp": ts,
         }
+
+    # Step 5.5: 중복 신청 검증 — role 무관, 카테고리 타입으로 결정
+    # 시간 검증만 매니저에게 면제되며, 중복 검사는 매니저도 동일하게 적용된다.
+    if category in UNIQUE_APPLY_CATEGORIES:
+        if is_already_applied(category, member_id):
+            return {"error": f"{member_name}({member_id})은(는) 이미 신청되어 있습니다."}, 409
 
     # Step 6: 동시성 제어 + 인메모리 조작 (is_board_changed = True 내부 처리)
     success, reason = apply_entry(category, entry)
