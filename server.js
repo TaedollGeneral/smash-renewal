@@ -123,6 +123,17 @@ app.get('{*splat}', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/dist', 'index.html'));
 });
 
+// [보안] URIError 전용 에러 핸들러 — 잘못된 URI 인코딩(%c0 등) 요청 처리
+// path-to-regexp가 {*splat} 패턴 매칭 시 decodeURIComponent를 호출하여 발생.
+// 핸들러가 없으면 Express 기본 500 응답이 반환되므로 400으로 명시적 차단한다.
+app.use((err, req, res, next) => {
+    if (err instanceof URIError) {
+        if (!res.headersSent) res.status(400).end();
+        return;
+    }
+    next(err);
+});
+
 // 예상치 못한 예외가 발생해도 프로세스 전체가 죽지 않도록 최후 안전망 등록
 // (req.pipe 등 스트림 레이어에서 발생하는 미처리 에러 대비)
 process.on('uncaughtException', (err) => {

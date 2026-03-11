@@ -14,6 +14,7 @@
 import json
 import os
 import sqlite3
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from .scheduler_logic import Category
@@ -24,8 +25,19 @@ _BASE_DIR = Path(__file__).resolve().parent.parent
 _DB_PATH = str(_BASE_DIR / "smash_db" / "users.db")
 _BACKUP_PATH = _BASE_DIR / "board_backup.json"
 
+_KST = timezone(timedelta(hours=9))
+
 _GUEST_CATEGORIES = {Category.WED_GUEST.value, Category.FRI_GUEST.value}
 _VALID_CATEGORIES = {cat.value for cat in Category}
+
+# 한 사람이 같은 주에 1번만 신청 가능한 카테고리 (중복 신청 검사 대상).
+# 게스트/잔여석은 여러 건 신청 가능하므로 제외한다.
+# role(manager 포함)에 관계없이 이 규칙이 적용된다.
+UNIQUE_APPLY_CATEGORIES: frozenset[str] = frozenset({
+    "WED_REGULAR",
+    "FRI_REGULAR",
+    "WED_LESSON",
+})
 
 
 # ── SQLite 연결 ───────────────────────────────────────────────────────────────
@@ -205,6 +217,38 @@ def remove_entry(category: str, user_id: str) -> bool:
         return cursor.rowcount > 0
     finally:
         conn.close()
+
+
+def is_already_applied(category: str, user_id: str) -> bool:
+    """이번 주에 해당 카테고리에 이미 신청했는지 확인한다.
+
+    이번 주 시작(토요일 00:00 KST) 이후 데이터만 검사하여,
+    리셋 미실행 또는 Redis 큐 재삽입으로 남아있는 이전 주 데이터를 오탐지하지 않는다.
+
+    UNIQUE_APPLY_CATEGORIES에 포함된 카테고리에만 호출한다.
+    SQLite 장애 시 False를 반환하여 신청을 시도한다.
+    → UNIQUE 제약이 최종 안전망으로 중복을 차단하므로 데이터 정합성에 영향 없음.
+    """
+    try:
+        now = datetime.now(_KST)
+        days_since_saturday = (now.weekday() - 5) % 7
+        week_start_ts = (now - timedelta(days=days_since_saturday)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).timestamp()
+
+        conn = _get_conn()
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM applications"
+                " WHERE category = ? AND user_id = ? AND timestamp >= ?"
+                " LIMIT 1",
+                (category, user_id, week_start_ts),
+            ).fetchone()
+            return row is not None
+        finally:
+            conn.close()
+    except Exception:
+        return False
 
 
 def reset_all() -> None:

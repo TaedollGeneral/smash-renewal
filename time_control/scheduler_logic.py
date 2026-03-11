@@ -140,13 +140,39 @@ def _next_saturday_midnight(now: datetime) -> datetime:
     )
 
 
+def _flush_apply_queue() -> None:
+    """Redis apply_queue를 비운다.
+
+    주간 리셋 시 SQLite 클리어보다 먼저 호출한다.
+    큐에 남아있는 이전 주 미처리 항목이 reset_all() 이후 재삽입되어
+    '_is_already_applied()' 오탐지를 유발하는 현상을 방지한다.
+
+    Redis 장애 시 예외를 삼키고 계속 진행한다.
+    (SQLite timestamp 필터가 최종 안전망 역할을 한다.)
+    """
+    import os as _os
+    import redis as _redis
+    try:
+        r = _redis.Redis(
+            host=_os.environ.get("REDIS_HOST", "127.0.0.1"),
+            port=int(_os.environ.get("REDIS_PORT", 6379)),
+            db=int(_os.environ.get("REDIS_DB", 0)),
+            socket_timeout=5,
+        )
+        r.delete("apply_queue")
+    except Exception:
+        pass
+
+
 def _reset_scheduler_worker(kst: timezone) -> None:
     """매주 토요일 00:00 KST에 인메모리 데이터를 초기화한다.
 
-    초기화 대상:
-      - board_store.reset_all()        : 신청/취소 게시판 전체
-      - capacity.store.reset_capacities(): 정원 캐시
-      - notifications.scheduler.reset_weekly(): 알림 구독 설정 + 정원 확정 상태
+    초기화 순서:
+      1. Redis apply_queue 플러시 — SQLite 클리어 전에 수행하여
+         이전 주 미처리 항목의 재삽입을 방지
+      2. board_store.reset_all()         : 신청/취소 게시판 전체
+      3. capacity.store.reset_capacities(): 정원 캐시
+      4. notifications.scheduler.reset_weekly(): 알림 구독 설정 + 정원 확정 상태
 
     다음 토요일 자정까지 sleep한 뒤 초기화를 수행하는 무한 루프.
     순환 import 방지를 위해 함수 내부에서 import한다.
@@ -162,6 +188,9 @@ def _reset_scheduler_worker(kst: timezone) -> None:
 
         if sleep_seconds > 0:
             _time.sleep(sleep_seconds)
+
+        # 1. Redis 큐 먼저 비움 (이전 주 항목이 SQLite 클리어 후 재삽입되는 것 방지)
+        _flush_apply_queue()
 
         reset_all()
         reset_capacities()
