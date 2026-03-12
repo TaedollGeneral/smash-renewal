@@ -17,7 +17,7 @@ from time_control.rate_limiter import rate_limit
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)  # Gunicorn timeout(30s)보다 낮게: lock 시 JSON 500 반환 보장
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -43,11 +43,13 @@ def migrate_token_version_column():
 def _get_token_version(student_id: str) -> int | None:
     """DB에서 해당 사용자의 현재 token_version을 반환한다."""
     conn = get_db_connection()
-    row = conn.execute(
-        "SELECT token_version FROM users WHERE student_id = ?", (student_id,)
-    ).fetchone()
-    conn.close()
-    return row["token_version"] if row else None
+    try:
+        row = conn.execute(
+            "SELECT token_version FROM users WHERE student_id = ?", (student_id,)
+        ).fetchone()
+        return row["token_version"] if row else None
+    finally:
+        conn.close()
 
 
 def token_required(f):

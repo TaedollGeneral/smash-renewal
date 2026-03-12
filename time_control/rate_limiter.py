@@ -16,6 +16,10 @@ _requests: dict[str, list[float]] = {}
 _CLEANUP_EVERY = 200
 _request_count = 0
 
+# cleanup 시 사용할 최대 윈도우 — 모든 엔드포인트 window(최대 60s)보다 크게 잡아
+# 서로 다른 window를 가진 엔드포인트 기록이 청소 타이밍에 따라 조기 삭제되지 않도록 한다.
+_CLEANUP_WINDOW = 120
+
 # ── 글로벌 IP 차단 (분당 요청 수 초과 시 일시 차단) ─────────────────────────────
 _GLOBAL_MAX_PER_IP = 120        # IP당 분당 최대 요청 수
 _GLOBAL_WINDOW = 60             # 윈도우 크기 (초)
@@ -44,12 +48,18 @@ def _get_real_ip() -> str:
     return remote
 
 
-def _cleanup(window: float) -> None:
-    """윈도우를 벗어난 오래된 요청 기록을 전체 정리한다."""
+def _cleanup() -> None:
+    """윈도우를 벗어난 오래된 요청 기록을 전체 정리한다.
+
+    _CLEANUP_WINDOW(120s)를 기준으로 전체 _requests를 청소한다.
+    개별 엔드포인트의 window_seconds와 무관하게 항상 동일한 기준을 사용하여,
+    window가 긴 엔드포인트(예: 로그인 30s, 비밀번호 변경 60s)의 기록이
+    window가 짧은 엔드포인트(예: apply 10s)의 cleanup 타이밍에 조기 삭제되지 않는다.
+    """
     now = time.time()
     expired_keys = []
     for key, timestamps in _requests.items():
-        _requests[key] = [t for t in timestamps if now - t < window]
+        _requests[key] = [t for t in timestamps if now - t < _CLEANUP_WINDOW]
         if not _requests[key]:
             expired_keys.append(key)
     for key in expired_keys:
@@ -118,7 +128,7 @@ def rate_limit(max_requests: int = 5, window_seconds: int = 10):
                 # 주기적 정리
                 _request_count += 1
                 if _request_count >= _CLEANUP_EVERY:
-                    _cleanup(window_seconds)
+                    _cleanup()
                     _request_count = 0
 
                 # 키 수 상한 체크 (메모리 방어)
