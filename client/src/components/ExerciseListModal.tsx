@@ -94,17 +94,7 @@ export function ExerciseListModal({
                 {/* ── Formatted text ─────────────────────────────────────── */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
                     <div className="relative bg-gray-50 rounded-xl">
-                        <button
-                            type="button"
-                            onClick={handleCopy}
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-lg transition-all hover:bg-gray-200"
-                            aria-label="복사"
-                        >
-                            {copied
-                                ? <Check className="w-4 h-4 text-green-500" />
-                                : <Copy className="w-4 h-4 text-gray-400" />}
-                        </button>
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed font-sans p-4 pr-10 select-all">
+                        <pre className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed font-sans p-4 select-all">
                             {formattedText}
                         </pre>
                     </div>
