@@ -29,7 +29,6 @@ _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _DB_PATH = os.path.join(_BASE_DIR, "smash_db", "users.db")
 
 _QUEUE_KEY = "apply_queue"
-_BRPOP_TIMEOUT = 0  # 0 = 무한 대기 (데이터가 들어올 때까지 블로킹)
 
 # ── Redis 연결 ────────────────────────────────────────────────────────────────
 

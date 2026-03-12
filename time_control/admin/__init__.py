@@ -43,7 +43,7 @@ _DB_PATH = os.path.join(
 def _lookup_member(student_id: str) -> dict | None:
     """users.db에서 회원을 조회한다. 없으면 None 반환."""
     try:
-        conn = sqlite3.connect(_DB_PATH)
+        conn = sqlite3.connect(_DB_PATH, timeout=10)  # Gunicorn timeout(30s)보다 낮게
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             "SELECT student_id, name FROM users WHERE student_id = ?",

@@ -48,7 +48,7 @@ def _get_conn() -> sqlite3.Connection:
     요청마다 새 연결을 생성한다. SQLite 연결 생성은 ~0.1ms로 경량이며,
     커넥션 풀링보다 Gunicorn fork 환경에서 안전하다.
     """
-    conn = sqlite3.connect(_DB_PATH, timeout=30)
+    conn = sqlite3.connect(_DB_PATH, timeout=10)  # Gunicorn timeout(30s)보다 낮게: lock 시 JSON 500 반환 보장
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
