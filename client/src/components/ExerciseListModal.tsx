@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, Check, ClipboardList } from 'lucide-react';
+import { X, ClipboardList } from 'lucide-react';
 
 interface ExerciseListModalProps {
     isOpen: boolean;
@@ -15,13 +15,6 @@ export function ExerciseListModal({
     dayType,
     formattedText,
 }: ExerciseListModalProps) {
-    const [copied, setCopied] = useState(false);
-
-    // 열릴 때마다 복사 상태 초기화
-    useEffect(() => {
-        if (isOpen) setCopied(false);
-    }, [isOpen]);
-
     // ESC 키로 닫기
     useEffect(() => {
         if (!isOpen) return;
@@ -33,26 +26,6 @@ export function ExerciseListModal({
     }, [isOpen, onClose]);
 
     if (!isOpen) return null;
-
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(formattedText);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch {
-            // clipboard API 미지원 환경 fallback
-            const el = document.createElement('textarea');
-            el.value = formattedText;
-            el.style.position = 'fixed';
-            el.style.opacity = '0';
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        }
-    };
 
     const handleBackdrop = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) onClose();

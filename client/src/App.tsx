@@ -1,8 +1,11 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Toaster } from 'sonner';
+import { ClipboardList } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { AccordionPanel } from '@/components/AccordionPanel';
 import { Sidebar } from '@/components/Sidebar';
+import { ExerciseListModal } from '@/components/ExerciseListModal';
+import { buildExerciseListText } from '@/lib/buildExerciseListText';
 import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState, NotifStatus } from '@/types';
 import { fetchAllBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -12,6 +15,7 @@ function App() {
   const [currentDay, setCurrentDay] = useState<DayType>('수');
   const [expandedPanels, setExpandedPanels] = useState<Set<BoardType>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isListModalOpen, setIsListModalOpen] = useState(false);
 
   // 사용자 정보 상태 (로컬 스토리지 연동)
   const [user, setUser] = useState<User | null>(() => {
@@ -355,6 +359,12 @@ function App() {
     }
   };
 
+  // 현재 페이지(수/금)의 확정 명단 텍스트 — 프론트엔드에서 계산
+  const exerciseListText = useMemo(
+    () => buildExerciseListText(currentDay, allApplications, capacities),
+    [currentDay, allApplications, capacities],
+  );
+
   const accordionPanels: Record<DayType, BoardType[]> = {
     '수': ['운동', '게스트', '레슨', '잔여석'],
     '금': ['운동', '게스트', '잔여석'],
@@ -500,6 +510,27 @@ function App() {
         </div>
 
       </div>
+
+      {/* Floating Action Button — 확정 명단 보기 */}
+      {user && (
+        <button
+          onClick={() => setIsListModalOpen(true)}
+          className="fixed bottom-5 right-4 z-[200] w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200"
+          style={{ boxShadow: '0 6px 24px rgba(0,0,0,0.25), 0 2px 8px rgba(28,93,153,0.3)' }}
+          aria-label="확정 명단 보기"
+        >
+          <ClipboardList className="w-5 h-5 text-[#1C5D99]" strokeWidth={2.5} />
+        </button>
+      )}
+
+      {/* 확정 명단 모달 */}
+      <ExerciseListModal
+        isOpen={isListModalOpen}
+        onClose={() => setIsListModalOpen(false)}
+        dayType={currentDay}
+        formattedText={exerciseListText}
+      />
+
     </>
   );
 }
