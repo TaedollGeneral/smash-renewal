@@ -42,10 +42,11 @@ def _get_transitions(category: str, week_start: datetime) -> list[tuple[datetime
 
     시간 규칙 (KST):
     토 00:00  ALL           -> BEFORE_OPEN
-    토 22:00  수/금 운동     -> OPEN
+    토 17:00  수 레슨        -> OPEN
+    토 17:00  금 운동        -> OPEN
+    토 22:00  수 운동        -> OPEN
     토 22:01  수/금 게스트    -> OPEN
     일 10:00  수/금 운동     -> CANCEL_ONLY
-    일 22:00  수 레슨        -> OPEN
     일 22:01  수/금 잔여석    -> OPEN
     수 00:00  수 운동        -> CLOSED
     수 18:00  수 게스트/잔여/레슨 -> CLOSED
@@ -70,11 +71,11 @@ def _get_transitions(category: str, week_start: datetime) -> list[tuple[datetime
         transitions.append((sat + timedelta(days=4, hours=18), Status.CLOSED))
 
     elif category == Category.WED_LESSON:
-        transitions.append((sat + timedelta(days=1, hours=22), Status.OPEN))
+        transitions.append((sat + timedelta(hours=17), Status.OPEN))
         transitions.append((sat + timedelta(days=4, hours=18), Status.CLOSED))
 
     elif category == Category.FRI_REGULAR:
-        transitions.append((sat + timedelta(hours=22), Status.OPEN))
+        transitions.append((sat + timedelta(hours=17), Status.OPEN))
         transitions.append((sat + timedelta(days=1, hours=10), Status.CANCEL_ONLY))
         transitions.append((sat + timedelta(days=6), Status.CLOSED))
 
