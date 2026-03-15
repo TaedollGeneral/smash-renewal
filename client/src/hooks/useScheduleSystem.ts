@@ -84,11 +84,17 @@ export async function fetchBoardData(category: Category): Promise<{
   };
 }
 
+export interface AllBoardData {
+  applications: Record<string, BoardEntry[]>;
+  userApplied: Record<string, boolean>;
+}
+
 /**
  * 전체 카테고리 현황을 1회 요청으로 가져온다.
  * 기존 7개 개별 요청(fetchBoardData × 7)을 대체하여 서버 부하를 ~85% 감소시킨다.
+ * user_already_applied: 이번 주 해당 카테고리 신청 여부 (UNIQUE_APPLY_CATEGORIES만 true 가능)
  */
-export async function fetchAllBoardData(): Promise<Record<string, BoardEntry[]>> {
+export async function fetchAllBoardData(): Promise<AllBoardData> {
   const token = getToken();
   if (!token) throw new Error('로그인이 필요합니다.');
 
@@ -98,13 +104,15 @@ export async function fetchAllBoardData(): Promise<Record<string, BoardEntry[]>>
   if (!response.ok) {
     throw new Error(`all-boards 조회 실패: ${response.status}`);
   }
-  const data: Record<string, { status: string; applications: BoardEntry[] }> = await response.json();
+  const data: Record<string, { status: string; applications: BoardEntry[]; user_already_applied: boolean }> = await response.json();
 
-  const result: Record<string, BoardEntry[]> = {};
+  const applications: Record<string, BoardEntry[]> = {};
+  const userApplied: Record<string, boolean> = {};
   for (const [cat, value] of Object.entries(data)) {
-    result[cat] = value.applications ?? [];
+    applications[cat] = value.applications ?? [];
+    userApplied[cat] = value.user_already_applied ?? false;
   }
-  return result;
+  return { applications, userApplied };
 }
 
 // ── Hook ───────────────────────────────────────────────
