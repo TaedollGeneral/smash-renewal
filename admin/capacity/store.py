@@ -1,18 +1,18 @@
-# admin/capacity/store.py — 운동 정원 Write-Through 인메모리 캐시
+# admin/capacity/store.py — 운동 정원 Redis + SQLite 저장소
 #
 # 구조:
-#   _cache = {"수": <int|None>, "금": <int|None>}
-#   - None: 임원진이 아직 정원을 확정하지 않은 상태
-#   - int:  확정된 정원
+#   Redis: capacity:wed, capacity:fri  (int as string | absent → None)
+#   SQLite: capacities 테이블         (서버 재시작 후 Redis 복원용)
 #
 # 동작:
-#   init_cache()          — 서버 부팅 시 1회, DB → 메모리 적재
-#   get_capacities()      — 메모리에서 즉시 반환 (I/O 0)
-#   update_capacities()   — 메모리 업데이트 + DB 쓰기 (I/O 1)
-#   reset_capacities()    — 주간 리셋 시 메모리 + DB 모두 초기화
+#   init_cache()          — 서버 부팅 시 1회, SQLite → Redis 적재
+#   get_capacities()      — Redis에서 반환 (모든 Gunicorn 워커 공유)
+#   update_capacities()   — Redis 업데이트 + SQLite 영구 저장
+#   reset_capacities()    — 주간 리셋 시 Redis + SQLite 모두 초기화
 import os
 import sqlite3
-import threading
+
+import redis as _redis_mod
 
 # ── DB 경로 (smash_db/users.db 와 같은 디렉터리) ───────────────────────────────
 _DB_PATH = os.path.join(
@@ -20,9 +20,19 @@ _DB_PATH = os.path.join(
     '..', '..', 'smash_db', 'users.db',
 )
 
-# ── 인메모리 캐시 ────────────────────────────────────────────────────────────────
-_cache: dict[str, int | None] = {"수": None, "금": None}
-_lock = threading.Lock()
+# ── Redis 연결 (notifications/store.py 와 동일한 패턴) ───────────────────────────
+_redis = _redis_mod.Redis(
+    host=os.environ.get("REDIS_HOST", "127.0.0.1"),
+    port=int(os.environ.get("REDIS_PORT", 6379)),
+    db=int(os.environ.get("REDIS_DB", 0)),
+    decode_responses=True,
+)
+
+# Redis 키: 요일 한글 → 키 이름
+_DAY_KEYS: dict[str, str] = {
+    "수": "capacity:wed",
+    "금": "capacity:fri",
+}
 
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
@@ -37,42 +47,42 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 
 
 def init_cache() -> None:
-    """서버 부팅 시 1회 호출. DB에서 마지막 확정 정원을 읽어 메모리에 적재한다."""
+    """서버 부팅 시 1회 호출. SQLite에서 마지막 확정 정원을 읽어 Redis에 적재한다."""
     conn = sqlite3.connect(_DB_PATH)
     try:
         _ensure_table(conn)
         rows = conn.execute("SELECT day, value FROM capacities").fetchall()
-        with _lock:
-            for day, value in rows:
-                if day in _cache:
-                    _cache[day] = value
+        for day, value in rows:
+            if day in _DAY_KEYS:
+                _redis.set(_DAY_KEYS[day], value)
     finally:
         conn.close()
 
 
 def get_capacities() -> dict[str, int | None]:
-    """인메모리 캐시에서 정원을 즉시 반환한다. (I/O 0)"""
-    with _lock:
-        return dict(_cache)
+    """Redis에서 정원을 반환한다. (모든 Gunicorn 워커가 동일한 값을 본다)"""
+    result: dict[str, int | None] = {}
+    for day, key in _DAY_KEYS.items():
+        val = _redis.get(key)
+        result[day] = int(val) if val is not None else None
+    return result
 
 
 def update_capacities(data: dict) -> None:
-    """메모리를 먼저 업데이트한 뒤, DB에도 영구 저장한다. (I/O 1)
+    """Redis를 먼저 업데이트한 뒤, SQLite에도 영구 저장한다.
 
     Args:
         data: {"수"?: int, "금"?: int} — 변경할 요일의 정원만 포함.
     """
-    # 유효한 키만 필터링
-    updates = {k: v for k, v in data.items() if k in ("수", "금") and isinstance(v, int)}
+    updates = {k: v for k, v in data.items() if k in _DAY_KEYS and isinstance(v, int)}
     if not updates:
         return
 
-    # 1) 메모리 업데이트 (즉시 반영)
-    with _lock:
-        for day, value in updates.items():
-            _cache[day] = value
+    # 1) Redis 업데이트 (즉시 모든 워커에 반영)
+    for day, value in updates.items():
+        _redis.set(_DAY_KEYS[day], value)
 
-    # 2) DB 영구 저장
+    # 2) SQLite 영구 저장 (재시작 후 Redis 복원용)
     conn = sqlite3.connect(_DB_PATH)
     try:
         _ensure_table(conn)
@@ -88,13 +98,12 @@ def update_capacities(data: dict) -> None:
 
 
 def reset_capacities() -> None:
-    """주간 리셋: 메모리 캐시를 None으로 초기화하고 DB 행도 삭제한다."""
-    # 1) 메모리 초기화
-    with _lock:
-        _cache["수"] = None
-        _cache["금"] = None
+    """주간 리셋: Redis 키를 삭제하고 SQLite 행도 삭제한다."""
+    # 1) Redis 초기화
+    for key in _DAY_KEYS.values():
+        _redis.delete(key)
 
-    # 2) DB 삭제
+    # 2) SQLite 삭제
     conn = sqlite3.connect(_DB_PATH)
     try:
         _ensure_table(conn)
