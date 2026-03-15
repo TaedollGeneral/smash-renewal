@@ -38,6 +38,7 @@ export interface CategoryState {
   status: StatusType;
   statusText: string;
   deadlineTimestamp: number; // Unix ms timestamp
+  userAlreadyApplied?: boolean; // 이번 주 해당 카테고리 신청 여부 (UNIQUE_APPLY_CATEGORIES만)
 }
 
 // /api/notifications/status 응답 형태

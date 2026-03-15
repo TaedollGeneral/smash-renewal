@@ -8,7 +8,7 @@ from time_control.rate_limiter import rate_limit
 from time_control.apply import handle_apply
 from time_control.cancel import handle_cancel
 from time_control.admin import handle_admin_apply, handle_admin_cancel
-from time_control.board_store import get_board, get_all_boards
+from time_control.board_store import get_board, get_all_boards, get_applied_categories
 
 application_bp = Blueprint('application', __name__)
 
@@ -184,6 +184,9 @@ def get_all_statuses():
     now = _now_kst()
     all_data = get_all_boards()
 
+    user_id = request.current_user["id"]
+    applied_cats = get_applied_categories(user_id)
+
     result = {}
     for cat_enum in Category:
         cat = cat_enum.value
@@ -198,6 +201,7 @@ def get_all_statuses():
         result[cat] = {
             "status": status,
             "applications": safe_applications,
+            "user_already_applied": cat in applied_cats,
         }
 
     return jsonify(result), 200

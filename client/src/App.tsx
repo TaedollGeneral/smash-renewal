@@ -172,12 +172,35 @@ function App() {
   // 폴링: 5분에 한번 + soft refresh
   const [allApplications, setAllApplications] = useState<Record<string, BoardEntry[]>>({});
 
+  // category → (dayType, boardType) 역매핑 (userAlreadyApplied를 categoryStates에 병합하기 위함)
+  const CAT_TO_DAY_PANEL: Record<string, [DayType, BoardType]> = {
+    'WED_REGULAR':  ['수', '운동'],
+    'WED_GUEST':    ['수', '게스트'],
+    'WED_LEFTOVER': ['수', '잔여석'],
+    'WED_LESSON':   ['수', '레슨'],
+    'FRI_REGULAR':  ['금', '운동'],
+    'FRI_GUEST':    ['금', '게스트'],
+    'FRI_LEFTOVER': ['금', '잔여석'],
+  };
+
   // ⭐️ 배치 API: 7개 개별 요청 → 1회 /api/all-boards 호출로 통합
   const fetchAllBoards = useCallback(async () => {
     if (!localStorage.getItem('smash_token')) return;
     try {
-      const allData = await fetchAllBoardData();
-      setAllApplications(allData);
+      const { applications, userApplied } = await fetchAllBoardData();
+      setAllApplications(applications);
+      // 신청 여부를 categoryStates에 병합 (별도 API 호출 없이 기존 응답 재활용)
+      setCategoryStates(prev => {
+        const next = structuredClone(prev) as typeof prev;
+        for (const [cat, applied] of Object.entries(userApplied)) {
+          const mapping = CAT_TO_DAY_PANEL[cat];
+          if (mapping) {
+            const [day, panel] = mapping;
+            next[day][panel] = { ...next[day][panel], userAlreadyApplied: applied };
+          }
+        }
+        return next;
+      });
       console.log('[게시판 데이터] 갱신 완료');
     } catch (error) {
       console.error('[게시판 데이터] 갱신 실패:', error);

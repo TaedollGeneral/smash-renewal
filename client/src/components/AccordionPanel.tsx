@@ -63,7 +63,7 @@ export function AccordionPanel({
   notifPrefs = {},
   onNotifToggle,
 }: AccordionPanelProps) {
-  const { status, statusText, deadlineTimestamp } = categoryState;
+  const { status, statusText, deadlineTimestamp, userAlreadyApplied } = categoryState;
 
   // ── useScheduleSystem: 액션(apply/cancel) 전용 ────
   // 현재 패널의 카테고리 판별 후, 부모가 준 전체 데이터에서 내 데이터만 꺼내오기!
@@ -117,8 +117,8 @@ export function AccordionPanel({
   };
 
   // 버튼 활성화 상태 결정 (manager는 status에 무관하게 항상 활성화)
-  // 일반 유저는 반드시 로그인 상태(user 존재)여야 활성화
-  const isApplyEnabled = isManager || (!!user && status === 'open');
+  // 일반 유저는 반드시 로그인 상태(user 존재)여야 하며, 이번 주 미신청이어야 활성화
+  const isApplyEnabled = isManager || (!!user && status === 'open' && !userAlreadyApplied);
   const isCancelEnabled = isManager || (!!user && (status === 'open' || status === 'cancel-period'));
 
   // 밀리초를 적절한 형식으로 변환

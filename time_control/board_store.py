@@ -251,6 +251,36 @@ def is_already_applied(category: str, user_id: str) -> bool:
         return False
 
 
+def get_applied_categories(user_id: str) -> set[str]:
+    """이번 주에 해당 user_id가 신청한 UNIQUE_APPLY_CATEGORIES 집합을 반환한다.
+
+    is_already_applied()를 카테고리별로 3회 호출하는 대신 쿼리 1회로 통합한다.
+    SQLite 장애 시 빈 집합을 반환하여 버튼이 활성화된 상태로 유지한다.
+    → 중복 신청 시도는 기존 서버-사이드 UNIQUE 제약이 최종 차단하므로 안전하다.
+    """
+    try:
+        now = datetime.now(_KST)
+        days_since_saturday = (now.weekday() - 5) % 7
+        week_start_ts = (now - timedelta(days=days_since_saturday)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).timestamp()
+
+        placeholders = ",".join("?" * len(UNIQUE_APPLY_CATEGORIES))
+        conn = _get_conn()
+        try:
+            rows = conn.execute(
+                f"SELECT category FROM applications"
+                f" WHERE user_id = ? AND category IN ({placeholders})"
+                f" AND timestamp >= ?",
+                (user_id, *UNIQUE_APPLY_CATEGORIES, week_start_ts),
+            ).fetchall()
+            return {row["category"] for row in rows}
+        finally:
+            conn.close()
+    except Exception:
+        return set()
+
+
 def reset_all() -> None:
     """모든 카테고리의 데이터를 초기화한다.
 
