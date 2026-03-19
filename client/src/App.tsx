@@ -9,6 +9,7 @@ import { buildExerciseListText } from '@/lib/buildExerciseListText';
 import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState, NotifStatus } from '@/types';
 import { fetchAllBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 
 function App() {
@@ -37,7 +38,7 @@ function App() {
   // /api/notifications/status 조회
   const fetchNotifStatus = useCallback(async (token: string) => {
     try {
-      const res = await fetch('/api/notifications/status', {
+      const res = await fetchWithAuth('/api/notifications/status', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setNotifStatus(await res.json());
@@ -85,6 +86,20 @@ function App() {
       }
     }
   }, []);
+
+  // 전역 401 자동 로그아웃 핸들러
+  // fetchWithAuth가 401 응답을 받으면 'auth:logout' 이벤트를 dispatch하고,
+  // 여기서 localStorage와 user 상태를 초기화하여 로그인 화면으로 전환한다.
+  const forceLogout = useCallback(() => {
+    localStorage.removeItem('smash_token');
+    localStorage.removeItem('smash_user');
+    setUser(null);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('auth:logout', forceLogout);
+    return () => window.removeEventListener('auth:logout', forceLogout);
+  }, [forceLogout]);
 
   /**
    * 정원 상태
@@ -216,7 +231,7 @@ function App() {
     const token = localStorage.getItem('smash_token');
     if (!token) return;
     try {
-      const response = await fetch(`/api/capacities`, {
+      const response = await fetchWithAuth(`/api/capacities`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Network response was not ok');
@@ -235,7 +250,7 @@ function App() {
     const token = localStorage.getItem('smash_token');
     if (!token) return;
     try {
-      const response = await fetch(`/api/category-states`, {
+      const response = await fetchWithAuth(`/api/category-states`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Network response was not ok');
@@ -345,7 +360,7 @@ function App() {
       if (newCapacities.수 != null) payload['수'] = Number(newCapacities.수);
       if (newCapacities.금 != null) payload['금'] = Number(newCapacities.금);
 
-      const response = await fetch('/api/admin/capacity', {
+      const response = await fetchWithAuth('/api/admin/capacity', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
