@@ -7,6 +7,7 @@ import { AdminActionModal } from './AdminActionModal';
 import { CancelSelectionModal } from './CancelSelectionModal';
 import type { CategoryState, GuestCapacity, User } from '@/types';
 import { useScheduleSystem, Category, type BoardEntry } from '@/hooks/useScheduleSystem';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 type BoardType = '운동' | '잔여석' | '게스트' | '레슨';
 type DayType = '수' | '금';
@@ -346,7 +347,7 @@ export function AccordionPanel({
     const newEnabled = !notifEnabled;
 
     try {
-      const res = await fetch('/api/notifications/toggle', {
+      const res = await fetchWithAuth('/api/notifications/toggle', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

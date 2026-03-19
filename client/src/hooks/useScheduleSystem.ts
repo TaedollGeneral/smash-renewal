@@ -1,5 +1,6 @@
 // useScheduleSystem.ts
 import { useCallback } from 'react';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 // ── Constants ──────
 export const Category = {
@@ -71,7 +72,7 @@ export async function fetchBoardData(category: Category): Promise<{
   const token = getToken();
   if (!token) throw new Error('로그인이 필요합니다.');
 
-  const response = await fetch(`/api/board-data?category=${category}`, {
+  const response = await fetchWithAuth(`/api/board-data?category=${category}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -98,7 +99,7 @@ export async function fetchAllBoardData(): Promise<AllBoardData> {
   const token = getToken();
   if (!token) throw new Error('로그인이 필요합니다.');
 
-  const response = await fetch('/api/all-boards', {
+  const response = await fetchWithAuth('/api/all-boards', {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -124,7 +125,7 @@ export function useScheduleSystem(category: Category) {
       const body: Record<string, string> = { category };
       if (options?.guestName) body.guest_name = options.guestName;
 
-      const response = await fetch('/api/apply', {
+      const response = await fetchWithAuth('/api/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
@@ -145,7 +146,7 @@ export function useScheduleSystem(category: Category) {
       const body: Record<string, string> = { category };
       if (options?.guestName) body.guest_name = options.guestName;
 
-      const response = await fetch('/api/cancel', {
+      const response = await fetchWithAuth('/api/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
@@ -166,7 +167,7 @@ export function useScheduleSystem(category: Category) {
       const body: Record<string, string> = { category, target_user_id: targetUserId };
       if (targetGuestName) body.target_guest_name = targetGuestName;
 
-      const response = await fetch('/api/admin/apply', {
+      const response = await fetchWithAuth('/api/admin/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
@@ -187,7 +188,7 @@ export function useScheduleSystem(category: Category) {
       const body: Record<string, string> = { category, target_user_id: targetUserId };
       if (targetGuestName) body.target_guest_name = targetGuestName;
 
-      const response = await fetch('/api/admin/cancel', {
+      const response = await fetchWithAuth('/api/admin/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
