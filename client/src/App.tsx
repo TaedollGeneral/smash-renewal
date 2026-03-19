@@ -425,27 +425,31 @@ function App() {
       <div className="flex flex-col h-[100dvh] bg-[#1C5D99] relative">
         {/* Background texture layer */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          {/* 🌟 1. 배경에 은은하게 퍼지는 빛 덩어리 추가 (강한 블러 적용) */}
-          {/* 좌측 상단 밝은 하늘색 빛 */}
-          <div className="absolute -top-20 -left-20 w-96 h-96 bg-[#4F86C6] rounded-full mix-blend-screen filter blur-[100px] opacity-60 animate-pulse" />
-          {/* 우측 하단 에메랄드/흰색 빛 */}
-          <div className="absolute -bottom-32 -right-32 w-[30rem] h-[30rem] bg-[#89CFF0] rounded-full mix-blend-screen filter blur-[120px] opacity-40" />
-          {/* 중앙 부근의 옅은 보라색/남색 빛 (선택) */}
-          <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-[#2A4B7C] rounded-full mix-blend-screen filter blur-[90px] opacity-50" />
-          {/* Subtle noise pattern */}
-          <div
-            className="absolute inset-0 opacity-[0.3]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'repeat',
-            }}
-          />
-
-          {/* Subtle gradient from top (darker below header) */}
+          {/* Radial gradient mesh — 자연스러운 빛의 깊이감 */}
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100px, transparent 200px)',
+              background: `
+                radial-gradient(ellipse 90% 55% at 15% 5%, rgba(79, 134, 198, 0.45) 0%, transparent 65%),
+                radial-gradient(ellipse 55% 45% at 85% 95%, rgba(28, 93, 153, 0.35) 0%, transparent 60%)
+              `,
+            }}
+          />
+          {/* Ultra-subtle film grain — opacity 0.05, 낮은 baseFrequency */}
+          <div
+            className="absolute inset-0"
+            style={{
+              opacity: 0.05,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'repeat',
+              backgroundSize: '256px 256px',
+            }}
+          />
+          {/* Top vignette */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.06) 0%, transparent 140px)',
             }}
           />
         </div>
