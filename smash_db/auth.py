@@ -179,18 +179,27 @@ def login():
 
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE student_id = ?', (user_id,)).fetchone()
-    conn.close()
 
     if user:
         if bcrypt.checkpw(user_pw.encode('utf-8'), user['password'].encode('utf-8')):
+            # 새 로그인 시 token_version 증가 → 기존 기기의 토큰 즉시 무효화 (중복 로그인 방지)
+            conn.execute(
+                'UPDATE users SET token_version = token_version + 1 WHERE student_id = ?',
+                (user['student_id'],)
+            )
+            conn.commit()
+            new_version = conn.execute(
+                'SELECT token_version FROM users WHERE student_id = ?', (user['student_id'],)
+            ).fetchone()['token_version']
             token = jwt.encode({
                 'id': user['student_id'],
                 'name': user['name'],
                 'role': user['role'],
-                'ver': user['token_version'],  # 토큰 버전: 비밀번호 변경 시 무효화에 사용
-                'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
+                'ver': new_version,  # 토큰 버전: 로그인/비밀번호 변경 시 무효화에 사용
+                'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=96)
             }, current_app.config['SECRET_KEY'], algorithm="HS256")
 
+            conn.close()
             return jsonify({
                 'message': '로그인 성공',
                 'token': token,
@@ -199,6 +208,7 @@ def login():
                 'role': user['role']
             }), 200
 
+    conn.close()
     return jsonify({'message': '아이디 또는 비밀번호가 올바르지 않습니다.'}), 401
 
 @auth_bp.route('/api/force-reset-password', methods=['POST'])
