@@ -78,11 +78,7 @@ def update_capacities(data: dict) -> None:
     if not updates:
         return
 
-    # 1) Redis 업데이트 (즉시 모든 워커에 반영)
-    for day, value in updates.items():
-        _redis.set(_DAY_KEYS[day], value)
-
-    # 2) SQLite 영구 저장 (재시작 후 Redis 복원용)
+    # 1) SQLite 영구 저장 (재시작 후 Redis 복원의 원본)
     conn = sqlite3.connect(_DB_PATH)
     try:
         _ensure_table(conn)
@@ -95,6 +91,10 @@ def update_capacities(data: dict) -> None:
         conn.commit()
     finally:
         conn.close()
+
+    # 2) Redis 업데이트 (즉시 모든 워커에 반영)
+    for day, value in updates.items():
+        _redis.set(_DAY_KEYS[day], value)
 
 
 def reset_capacities() -> None:
