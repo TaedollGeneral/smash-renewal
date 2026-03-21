@@ -60,9 +60,17 @@ app.register_blueprint(notif_bp)
 # DB 마이그레이션: token_version 컬럼 추가 (없는 경우만)
 migrate_token_version_column()
 
-# 정원 캐시: DB → 메모리 적재 (서버 부팅 시 1회)
-from admin.capacity.store import init_cache as init_capacity_cache
+# 정원 캐시: SQLite → Redis 적재 (서버 부팅 시 1회)
+# 인스턴스 재시작 후 confirmed 플래그도 함께 복원한다.
+# (confirmed는 Redis에만 있어 재시작 시 사라지므로, capacity가 있으면 확정 상태로 간주)
+from admin.capacity.store import init_cache as init_capacity_cache, get_capacities
+from notifications.store import set_wed_confirmed, set_fri_confirmed
 init_capacity_cache()
+_caps = get_capacities()
+if _caps.get("수") is not None:
+    set_wed_confirmed(True)
+if _caps.get("금") is not None:
+    set_fri_confirmed(True)
 
 # 게시판: SQLite applications 테이블 초기화 + 레거시 백업 마이그레이션
 from time_control.board_store import ensure_table, load_from_backup
