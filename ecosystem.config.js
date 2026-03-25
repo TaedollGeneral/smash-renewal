@@ -73,8 +73,9 @@ module.exports = {
     // ── 4. Redis → SQLite 백그라운드 워커 ────────────────────────────────────
     {
       name        : 'apply-worker',
-      script      : path.join(APP_DIR, 'worker.py'),
-      interpreter : PYTHON_BIN,
+      script      : PYTHON_BIN,
+      args        : path.join(APP_DIR, 'worker.py'),
+      interpreter : 'none',   // PM2 컨테이너 래핑 없이 Python 바이너리를 직접 실행
       cwd         : APP_DIR,
       env_file    : path.join(APP_DIR, '.env'),
       watch       : false,
