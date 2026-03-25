@@ -1,14 +1,20 @@
-# gunicorn.conf.py — Gunicorn 프로덕션 설정
+# gunicorn.conf.py — Gunicorn 프로덕션 설정 (GEN: 일반 트래픽 전용)
 #
 # 실행: gunicorn -c gunicorn.conf.py app:app
 #
-# 환경: 2 vCPU / 1 GB RAM (가용 ~600 MB)
+# 인스턴스별 워커 수는 .env 프로파일로 제어된다:
+#   t3.small  (평시):     GUNICORN_WORKERS=2, GUNICORN_THREADS=4 → 8 슬롯
+#   c6i.xlarge (피크타임): GUNICORN_WORKERS=3, GUNICORN_THREADS=4 → 12 슬롯
+#
+# configure.sh 가 .env를 교체하고 PM2를 재시작하면 자동 적용된다.
 
-import multiprocessing
+import os
+from dotenv import load_dotenv
+load_dotenv()  # .env → 환경변수 로드 (gunicorn은 Flask보다 먼저 실행되므로 직접 로드)
 
 # ── 워커 설정 ────────────────────────────────────────────────────────────────────
-workers = 2                  # CPU 코어 수에 맞춤 (2 vCPU)
-threads = 4                  # 워커당 스레드 수 (총 동시 처리: 2×4 = 8)
+workers      = int(os.environ.get("GUNICORN_WORKERS", "2"))   # 기본값: t3.small 기준
+threads      = int(os.environ.get("GUNICORN_THREADS", "4"))
 worker_class = "gthread"     # 스레드 기반 워커 (I/O 바운드에 적합)
 
 # ── 타임아웃 ─────────────────────────────────────────────────────────────────────
