@@ -13,6 +13,13 @@ auth_bp = Blueprint('auth', __name__)
 # 로그인 브루트포스 방지용 rate limiter (auth 전용, IP 기반)
 from time_control.rate_limiter import rate_limit
 
+# ── bcrypt CPU 세마포어 ───────────────────────────────────────────────────────
+# bcrypt는 CPU-intensive 연산(~300ms)이므로 동시 실행 수를 제한하여
+# 피크타임에 모든 스레드가 bcrypt에 점유당하는 것을 방지한다.
+# BCRYPT_SEMAPHORE=2 (c6i.xlarge 피크), =1 (t3.small 평시) — configure.sh가 설정
+import threading as _threading
+_bcrypt_sem = _threading.Semaphore(int(os.environ.get("BCRYPT_SEMAPHORE", "1")))
+
 # DB 파일 경로 (__file__ 기준 상대 경로로 안정적으로 해석)
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
@@ -120,10 +127,11 @@ def verify_password(student_id: str, current_password: str) -> bool:
     if user is None:
         return False
 
-    return bcrypt.checkpw(
-        current_password.encode('utf-8'),
-        user['password'].encode('utf-8')
-    )
+    with _bcrypt_sem:
+        return bcrypt.checkpw(
+            current_password.encode('utf-8'),
+            user['password'].encode('utf-8')
+        )
 
 
 def _validate_password(password: str) -> str | None:
@@ -144,9 +152,10 @@ def update_password(student_id: str, new_password: str) -> bool:
 
     token_version 증가로 기존에 발급된 모든 JWT(다른 기기 포함)가 즉시 무효화된다.
     """
-    hashed_pw = bcrypt.hashpw(
-        new_password.encode('utf-8'), bcrypt.gensalt()
-    ).decode('utf-8')
+    with _bcrypt_sem:
+        hashed_pw = bcrypt.hashpw(
+            new_password.encode('utf-8'), bcrypt.gensalt()
+        ).decode('utf-8')
 
     conn = get_db_connection()
     cursor = conn.execute(
@@ -181,7 +190,9 @@ def login():
     user = conn.execute('SELECT * FROM users WHERE student_id = ?', (user_id,)).fetchone()
 
     if user:
-        if bcrypt.checkpw(user_pw.encode('utf-8'), user['password'].encode('utf-8')):
+        with _bcrypt_sem:
+            pw_match = bcrypt.checkpw(user_pw.encode('utf-8'), user['password'].encode('utf-8'))
+        if pw_match:
             # 새 로그인 시 token_version 증가 → 기존 기기의 토큰 즉시 무효화 (중복 로그인 방지)
             conn.execute(
                 'UPDATE users SET token_version = token_version + 1 WHERE student_id = ?',
@@ -196,7 +207,7 @@ def login():
                 'name': user['name'],
                 'role': user['role'],
                 'ver': new_version,  # 토큰 버전: 로그인/비밀번호 변경 시 무효화에 사용
-                'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=96)
+                'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2880)  # 4개월
             }, current_app.config['SECRET_KEY'], algorithm="HS256")
 
             conn.close()

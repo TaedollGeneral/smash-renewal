@@ -1,5 +1,7 @@
 # application_routes.py — 운동 신청/취소/현황 API Blueprint
 from flask import Blueprint, request, jsonify
+import os
+import redis as _redis
 
 from smash_db.auth import token_required
 from time_control.scheduler_logic import Category, get_current_status
@@ -11,6 +13,30 @@ from time_control.admin import handle_admin_apply, handle_admin_cancel
 from time_control.board_store import get_board, get_all_boards, get_applied_categories
 
 application_bp = Blueprint('application', __name__)
+
+# ── GET 서킷 브레이커 ─────────────────────────────────────────────────────────
+# Redis apply_queue 길이가 임계값을 초과하면 시스템이 피크 부하 상태로 판단한다.
+# 이 경우 GET(게시판 조회) 요청에 SQLite 조회를 생략하고 정적 메시지를 반환하여
+# 남은 스레드를 신청(POST) 처리에 집중시킨다.
+#
+# 임계값: 큐 100건 = 약 15초 분량의 신청 적체 (worker가 6.67건/초 처리 시)
+_QUEUE_OVERLOAD_THRESHOLD = int(os.environ.get("QUEUE_OVERLOAD_THRESHOLD", "100"))
+
+_circuit_redis = _redis.Redis(
+    host=os.environ.get("REDIS_HOST", "127.0.0.1"),
+    port=int(os.environ.get("REDIS_PORT", 6379)),
+    db=int(os.environ.get("REDIS_DB", 0)),
+    decode_responses=True,
+    socket_timeout=1,         # 서킷 브레이커 자체가 병목이 되지 않도록 1초 타임아웃
+    socket_connect_timeout=1,
+)
+
+def _is_overloaded() -> bool:
+    """Redis apply_queue 길이로 시스템 과부하 여부를 판단한다."""
+    try:
+        return _circuit_redis.llen("apply_queue") >= _QUEUE_OVERLOAD_THRESHOLD
+    except Exception:
+        return False  # Redis 조회 실패 시 과부하 아닌 것으로 간주 (안전 방향)
 
 
 def _validate_category(category: str | None) -> str | None:
@@ -142,7 +168,15 @@ def get_status():
 
     2초 폴링 대상 엔드포인트. 인메모리에서 즉시 응답한다.
     Rate Limit: IP당 10초 내 30회 (2초 폴링 기준 충분히 여유)
+    피크타임 과부하 시 정적 메시지를 반환하여 스레드를 신청 처리에 집중시킨다.
     """
+    # 서킷 브레이커: 과부하 시 DB 조회 없이 즉시 반환
+    if _is_overloaded():
+        return jsonify({
+            "overloaded": True,
+            "message": "집계중입니다. 잠시만 기다려주세요.",
+        }), 200
+
     category = request.args.get('category')
 
     error = _validate_category(category)
@@ -173,6 +207,7 @@ def get_all_statuses():
 
     기존 /api/board-data 를 카테고리별로 7회 호출하던 것을 1회로 통합한다.
     인메모리에서 전체 스냅샷을 한 번에 반환하므로 Lock 획득도 1회로 줄어든다.
+    피크타임 과부하 시 정적 메시지를 반환하여 스레드를 신청 처리에 집중시킨다.
 
     Response (JSON):
         {
@@ -181,6 +216,13 @@ def get_all_statuses():
           ...
         }
     """
+    # 서킷 브레이커: 과부하 시 DB 조회 없이 즉시 반환
+    if _is_overloaded():
+        return jsonify({
+            "overloaded": True,
+            "message": "집계중입니다. 잠시만 기다려주세요.",
+        }), 200
+
     now = _now_kst()
     all_data = get_all_boards()
 

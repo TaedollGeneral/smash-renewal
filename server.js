@@ -5,8 +5,11 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const FLASK_PORT = process.env.FLASK_PORT || 5000;
+const PORT           = process.env.PORT       || 3000;
+const FLASK_PORT     = process.env.FLASK_PORT || 5000;
+// VIP 포트: VIP_ENABLED=true (c6i.xlarge 피크타임)일 때 POST /api/apply를 별도 Gunicorn으로 분기
+const VIP_ENABLED    = process.env.VIP_ENABLED    === 'true';
+const FLASK_VIP_PORT = process.env.FLASK_VIP_PORT || 5001;
 
 // [보안] CORS — 허용 출처를 운영 도메인으로 제한
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
@@ -44,6 +47,12 @@ app.use((req, res, next) => {
 // 정적 파일 경로를 React 빌드 폴더(client/dist)로 설정
 app.use(express.static(path.join(__dirname, 'client/dist')));
 
+// ── /api/category-states 응답 캐시 (2초 TTL) ─────────────────────────────────
+// 200명 동시 접속 × 2초 폴링 = 최대 초당 100건 요청을 캐시가 흡수한다.
+// TTL 2초: 실제 상태 변경(신청 오픈/마감)보다 훨씬 짧아 UX 영향 없음.
+let _statesCache = { body: null, headers: null, ts: 0 };
+const STATES_CACHE_TTL_MS = 2000;
+
 // ── Flask 리버스 프록시 ────────────────────────────────────────────────────────
 // /api/* 와 Flask Blueprint 경로들을 127.0.0.1:5000(Flask)으로 전달한다.
 // SPA catch-all보다 반드시 앞에 위치해야 한다.
@@ -52,6 +61,15 @@ const FLASK_PREFIXES = ['/api/', '/login', '/apply', '/cancel', '/status'];
 app.use((req, res, next) => {
     const isFlask = FLASK_PREFIXES.some(p => req.path === p || req.path.startsWith(p));
     if (!isFlask) return next();
+
+    // ── /api/category-states 캐시 처리 ───────────────────────────────────────
+    // 2초 TTL 내 재요청은 캐시에서 즉시 반환하여 Flask 도달 차단
+    if (req.method === 'GET' && req.path === '/api/category-states') {
+        if (_statesCache.body && (Date.now() - _statesCache.ts) < STATES_CACHE_TTL_MS) {
+            res.writeHead(200, _statesCache.headers);
+            return res.end(_statesCache.body);
+        }
+    }
 
     // req 스트림을 파싱 없이 Flask로 직접 파이프한다.
     // - body 재직렬화를 하지 않으므로 Buffer.byteLength 관련 크래시가 원천 차단됨
@@ -67,20 +85,49 @@ app.use((req, res, next) => {
     delete sanitizedHeaders['x-forwarded-proto'];
     delete sanitizedHeaders['x-real-ip'];
 
+    // ── VIP 포트 분기 ─────────────────────────────────────────────────────────
+    // VIP_ENABLED=true (c6i.xlarge 피크타임)이고 POST /api/apply인 경우에만
+    // 전용 Gunicorn VIP 인스턴스(port 5001)로 라우팅한다.
+    // 그 외 모든 요청(로그인, GET, 취소 등)은 GEN 인스턴스(port 5000)로 전달.
+    const isVipApply = VIP_ENABLED && req.path === '/api/apply' && req.method === 'POST';
+    const targetPort = isVipApply ? FLASK_VIP_PORT : FLASK_PORT;
+
     const options = {
         hostname: '127.0.0.1',
-        port: FLASK_PORT,
+        port: targetPort,
         path: req.url,
         method: req.method,
         headers: {
             ...sanitizedHeaders,
-            host: `127.0.0.1:${FLASK_PORT}`,
+            host: `127.0.0.1:${targetPort}`,
             'x-forwarded-for': clientIp,
             'x-forwarded-proto': req.protocol,
         },
     };
 
     const proxy = http.request(options, (flaskRes) => {
+        // ── category-states 캐시 갱신 ────────────────────────────────────────
+        // 성공 응답(200)일 때만 캐시에 저장한다.
+        const isCacheTarget = req.method === 'GET'
+            && req.path === '/api/category-states'
+            && flaskRes.statusCode === 200;
+
+        if (isCacheTarget) {
+            const chunks = [];
+            flaskRes.on('data', chunk => chunks.push(chunk));
+            flaskRes.on('end', () => {
+                const body = Buffer.concat(chunks);
+                _statesCache = { body, headers: flaskRes.headers, ts: Date.now() };
+                res.writeHead(200, flaskRes.headers);
+                res.end(body);
+            });
+            flaskRes.on('error', (err) => {
+                console.error('[Flask response stream error]', err.message);
+                if (!res.writableEnded) res.end();
+            });
+            return; // 아래 pipe 처리를 건너뜀
+        }
+
         res.writeHead(flaskRes.statusCode, flaskRes.headers);
         flaskRes.pipe(res);
 

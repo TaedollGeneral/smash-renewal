@@ -90,6 +90,9 @@ export function AccordionPanel({
   // 중복 제출 방어막: API 호출 진행 중 상태
   const [isApplying, setIsApplying] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  // POST 200 확인 즉시 영구 비활성화 (GET 응답에 의존하지 않음)
+  // 게스트/잔여석은 다중 신청 허용이므로 handleApply(일반 카테고리 전용)에서만 사용
+  const [localApplied, setLocalApplied] = useState(false);
 
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [participantName, setParticipantName] = useState('');
@@ -119,7 +122,7 @@ export function AccordionPanel({
 
   // 버튼 활성화 상태 결정 (manager는 status에 무관하게 항상 활성화)
   // 일반 유저는 반드시 로그인 상태(user 존재)여야 하며, 이번 주 미신청이어야 활성화
-  const isApplyEnabled = isManager || (!!user && status === 'open' && !userAlreadyApplied);
+  const isApplyEnabled = isManager || (!!user && status === 'open' && !userAlreadyApplied && !localApplied);
   const isCancelEnabled = isManager || (!!user && (status === 'open' || status === 'cancel-period'));
 
   // 밀리초를 적절한 형식으로 변환
@@ -199,6 +202,7 @@ export function AccordionPanel({
       try {
         const result = await apply();
         if (result.success) {
+          setLocalApplied(true); // POST 200 확인 → GET 응답 무관하게 즉시 영구 비활성화
           alert('신청이 완료되었습니다.');
           onActionSuccess(); // ⭐️ 리프레시!
         } else {
