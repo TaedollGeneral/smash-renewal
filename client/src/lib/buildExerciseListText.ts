@@ -3,12 +3,21 @@ import type { Capacity } from '@/types';
 
 type DayType = '수' | '금';
 
-// 다음 수요일 또는 금요일 날짜 계산
+// 이번 주기의 수요일 또는 금요일 날짜 계산
+// 주간 리셋 기준: 토요일(6) 00:00 KST
+// 토요일 이전(일~금)이고 targetDay가 이미 지났으면 이번 주(과거) 날짜 반환
 function getSessionDate(dayType: DayType): Date {
   const today = new Date();
   const targetDay = dayType === '수' ? 3 : 5; // 0=Sun … 3=Wed, 5=Fri
   const currentDay = today.getDay();
-  const daysUntil = (targetDay - currentDay + 7) % 7;
+  let daysUntil = (targetDay - currentDay + 7) % 7;
+
+  // 토요일(6) 리셋 전이고 targetDay가 이미 지난 경우 → 이번 주 날짜 사용
+  // (예: 금요일에 수요일 명단 → 이번 주 수요일)
+  if (daysUntil !== 0 && currentDay !== 6 && currentDay > targetDay) {
+    daysUntil -= 7;
+  }
+
   const result = new Date(today);
   result.setDate(today.getDate() + daysUntil);
   return result;
