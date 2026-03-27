@@ -40,6 +40,8 @@ interface AccordionPanelProps {
   // 부모로부터 데이터와 리프레시 함수를 받음
   allApplications: Record<string, BoardEntry[]>;
   onActionSuccess: () => void;
+  /** 서버 과부하(서킷 브레이커) 시 게시판에 "집계중" 메시지 표시 */
+  boardOverloaded?: boolean;
   // ── 알림 설정 (레슨 제외 모든 패널) ──────────────────────────────────────
   /** 해당 요일의 정원 확정 여부 (False면 토글 비활성, 클릭 시 안내 Toast) */
   notifConfirmed?: boolean;
@@ -60,6 +62,7 @@ export function AccordionPanel({
   onCountdownZero,
   allApplications,
   onActionSuccess,
+  boardOverloaded = false,
   notifConfirmed = false,
   notifPrefs = {},
   onNotifToggle,
@@ -533,7 +536,7 @@ export function AccordionPanel({
         className={`accordion-content overflow-hidden transition-[max-height,opacity] duration-300 ease-out will-change-[max-height,opacity] ${accordionVisibilityClass}`}
       >
         <div className="pb-4">
-          <BoardTable type={title} applications={applications} highlightCount={
+          <BoardTable type={title} applications={applications} boardOverloaded={boardOverloaded} highlightCount={
             capacity == null
               ? undefined
               : typeof capacity === 'object'
