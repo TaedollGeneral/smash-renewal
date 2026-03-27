@@ -30,7 +30,10 @@ def calculate_capacity_details(day: str, total_capacity: int, special_count: int
         exercise = min(e, s)
         leftover = max(0, s - e)
     else:
-        # 금요일: 게스트 최대 2 (특수 인원 제외한 일반 게스트 기준)
+        # 금요일: 게스트 2자리는 총정원에서 선공제, 운동/잔여석과 완전 분리
+        # 운동 기준 정원 = total - 2 (게스트 신청 여부 무관)
+        # 잔여석 = (total - 2) - 운동 신청자 수
+        # 게스트 표시용 limit은 실제 신청자 수 기준 (0~2), 운동 계산에 미반영
         f = total_capacity
         guest_entries = board_store.get_board(Category.FRI_GUEST)
         g = sum(
@@ -39,7 +42,7 @@ def calculate_capacity_details(day: str, total_capacity: int, special_count: int
             and "(교류전)" not in entry.get("guest_name", "").lower()
         )
         guest_limit = min(g, 2)
-        r = f - guest_limit
+        r = f - 2
         e = len(board_store.get_board(Category.FRI_REGULAR))
         exercise = min(e, r)
         leftover = max(0, r - e)
