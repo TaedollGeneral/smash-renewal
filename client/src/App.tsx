@@ -295,17 +295,28 @@ function App() {
   // 랜덤 지터(0~500ms)로 212명 동시 접속 시 Thundering Herd 현상을 완화한다.
   const lastCountdownFetchRef = useRef(0);
 
+  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleCountdownZero = (dayType: DayType, category: BoardType) => {
     const now = Date.now();
     if (now - lastCountdownFetchRef.current < 2000) return;
     lastCountdownFetchRef.current = now;
 
+    // 카운트다운 0 → 5초간 게시판 "집계중" 표시, 조회 차단
+    setBoardOverloaded(true);
+
     const jitter = Math.random() * 500;
-    console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → ${Math.round(jitter)}ms 후 갱신`);
-    setTimeout(() => {
-      fetchCategoryStates();
+    console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신, 게시판 5초 후 갱신`);
+
+    // 카테고리 상태(버튼 활성화/카운트다운)는 즉시 갱신
+    setTimeout(() => fetchCategoryStates(), jitter);
+
+    // 게시판 명단 조회는 5초 후
+    if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+    graceTimerRef.current = setTimeout(() => {
       fetchAllBoards();
-    }, jitter);
+      graceTimerRef.current = null;
+    }, 5000);
   };
 
   // ─── Soft refresh: 세 가지 데이터 모두 즉시 갱신 ────────────────────────────
