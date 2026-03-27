@@ -199,10 +199,18 @@ function App() {
   };
 
   // ⭐️ 배치 API: 7개 개별 요청 → 1회 /api/all-boards 호출로 통합
+  const [boardOverloaded, setBoardOverloaded] = useState(false);
   const fetchAllBoards = useCallback(async () => {
     if (!localStorage.getItem('smash_token')) return;
     try {
-      const { applications, userApplied } = await fetchAllBoardData();
+      const { applications, userApplied, overloaded } = await fetchAllBoardData();
+      // 서킷 브레이커 발동 시: 기존 데이터 유지, overloaded 플래그만 설정
+      if (overloaded) {
+        setBoardOverloaded(true);
+        console.log('[게시판 데이터] 서버 과부하 — 기존 데이터 유지');
+        return;
+      }
+      setBoardOverloaded(false);
       setAllApplications(applications);
       // 신청 여부를 categoryStates에 병합 (별도 API 호출 없이 기존 응답 재활용)
       setCategoryStates(prev => {
@@ -541,6 +549,7 @@ function App() {
                     onCountdownZero={() => handleCountdownZero(currentDay, panel)}
                     allApplications={allApplications}
                     onActionSuccess={fetchAllBoards}
+                    boardOverloaded={boardOverloaded}
                     notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
                     notifPrefs={notifStatus?.prefs ?? {}}
                     onNotifToggle={handleNotifToggle}

@@ -5,10 +5,11 @@ import { formatTimestamp } from '@/lib/utils';
 interface BoardTableProps {
   type: BoardType;
   applications?: BoardEntry[];
+  boardOverloaded?: boolean;
   highlightCount?: number;
 }
 
-export function BoardTable({ type, applications = [], highlightCount }: BoardTableProps) {
+export function BoardTable({ type, applications = [], boardOverloaded = false, highlightCount }: BoardTableProps) {
 
   const renderHeaders = () => {
     switch (type) {
@@ -136,7 +137,7 @@ export function BoardTable({ type, applications = [], highlightCount }: BoardTab
               colSpan={type === '운동' ? 3 : 4}
               className="py-8 text-center text-sm text-gray-500"
             >
-              신청 내역이 없습니다
+              {boardOverloaded ? '집계중입니다. 잠시만 기다려주세요.' : '신청 내역이 없습니다'}
             </td>
           </tr>
         )}
