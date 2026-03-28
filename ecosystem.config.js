@@ -79,10 +79,14 @@ module.exports = {
       cwd         : APP_DIR,
       env_file    : path.join(APP_DIR, '.env'),
       watch       : false,
-      // 워커가 예외로 종료되면 즉시 재시작 (큐 적재 유실 방지)
-      autorestart : true,
-      max_restarts: 20,
-      min_uptime  : '5s',
+      // 워커는 큐 처리의 유일한 주체이므로 어떤 상황에서도 재시작한다.
+      // max_restarts 제거: 피크타임 중 크래시 루프에도 PM2가 포기하지 않음
+      autorestart  : true,
+      restart_delay: 4000,    // 재시작 전 4초 대기 — 빠른 반복 크래시 속도 억제
+      min_uptime   : '10s',   // 10초 이상 생존해야 정상 기동으로 간주
+      // OOM killer(SIGKILL) 방지: 메모리 한도 초과 전 PM2가 SIGTERM으로 graceful restart
+      // → _signal_handler가 현재 배치 완료 후 종료 → commit 전 강제 종료(D2) 방지
+      max_memory_restart: '200M',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
   ],
