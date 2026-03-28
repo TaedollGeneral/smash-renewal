@@ -38,6 +38,7 @@ export interface CategoryState {
   status: StatusType;
   statusText: string;
   deadlineTimestamp: number; // Unix ms timestamp
+  nextStatus?: StatusType;   // 다음 상태 전환 시 도달할 상태 (카운트다운 0 즉시 버튼 전환에 사용)
   userAlreadyApplied?: boolean; // 이번 주 해당 카테고리 신청 여부 (UNIQUE_APPLY_CATEGORIES만)
 }
 

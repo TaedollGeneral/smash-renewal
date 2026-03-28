@@ -68,7 +68,7 @@ export function AccordionPanel({
   notifPrefs = {},
   onNotifToggle,
 }: AccordionPanelProps) {
-  const { status, statusText, deadlineTimestamp, userAlreadyApplied } = categoryState;
+  const { status, statusText, deadlineTimestamp, nextStatus, userAlreadyApplied } = categoryState;
 
   // ── useScheduleSystem: 액션(apply/cancel) 전용 ────
   // 현재 패널의 카테고리 판별 후, 부모가 준 전체 데이터에서 내 데이터만 꺼내오기!
@@ -124,10 +124,15 @@ export function AccordionPanel({
     }
   };
 
-  // 버튼 활성화 상태 결정 (manager는 status에 무관하게 항상 활성화)
+  // 카운트다운 0 도달 시 서버 응답(캐시 포함) 대기 없이 즉시 상태 전환
+  // nextStatus: 서버가 미리 알려준 다음 상태 (before-open→open, open→cancel-period 등)
+  // remainingMilliseconds === 0이면 서버도 이미 전환 완료 상태이므로 낙관적으로 전환
+  const effectiveStatus = (remainingMilliseconds === 0 && nextStatus) ? nextStatus : status;
+
+  // 버튼 활성화 상태 결정 (manager는 effectiveStatus에 무관하게 항상 활성화)
   // 일반 유저는 반드시 로그인 상태(user 존재)여야 하며, 이번 주 미신청이어야 활성화
-  const isApplyEnabled = isManager || (!!user && status === 'open' && !userAlreadyApplied && !localApplied);
-  const isCancelEnabled = isManager || (!!user && (status === 'open' || status === 'cancel-period'));
+  const isApplyEnabled = isManager || (!!user && effectiveStatus === 'open' && !userAlreadyApplied && !localApplied);
+  const isCancelEnabled = isManager || (!!user && (effectiveStatus === 'open' || effectiveStatus === 'cancel-period'));
 
   // 밀리초를 적절한 형식으로 변환
   const formatTime = (milliseconds: number) => {
