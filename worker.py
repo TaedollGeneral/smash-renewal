@@ -43,6 +43,8 @@ _redis_client = redis.Redis(
     port=int(os.environ.get("REDIS_PORT", 6379)),
     db=int(os.environ.get("REDIS_DB", 0)),
     decode_responses=True,
+    socket_timeout=5,           # Redis hang 시 5초 후 TimeoutError → 자동 재연결
+    socket_connect_timeout=3,   # 연결 수립 타임아웃
 )
 
 
@@ -93,10 +95,17 @@ def _fetch_batch() -> list[dict]:
     rpop을 _BATCH_SIZE번 호출하여 현재 적재된 항목을 일괄 수집한다.
     큐가 비어있으면 빈 리스트를 반환한다.
     FIFO 순서 보장: lpush(최신) → rpop(가장 오래된) 순으로 처리.
+
+    ConnectionError/TimeoutError 발생 시 루프를 중단하고 현재까지 수집된
+    entries를 반환한다. 이미 rpop된 항목을 버리지 않고 INSERT까지 처리한 뒤,
+    다음 iteration에서 재연결을 시도한다. (D1 데이터 유실 방지)
     """
     entries = []
     for _ in range(_BATCH_SIZE):
-        raw = _redis_client.rpop(_QUEUE_KEY)
+        try:
+            raw = _redis_client.rpop(_QUEUE_KEY)
+        except (redis.ConnectionError, redis.TimeoutError):
+            break  # 현재까지 수집된 entries 반환 후 처리, 재연결은 다음 루프에서
         if raw is None:
             break  # 큐 소진
         try:
