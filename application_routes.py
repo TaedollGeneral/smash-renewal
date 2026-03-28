@@ -19,7 +19,9 @@ application_bp = Blueprint('application', __name__)
 # 이 경우 GET(게시판 조회) 요청에 SQLite 조회를 생략하고 정적 메시지를 반환하여
 # 남은 스레드를 신청(POST) 처리에 집중시킨다.
 #
-# 임계값: 큐 100건 = 약 15초 분량의 신청 적체 (worker가 6.67건/초 처리 시)
+# 임계값: 큐 100건 초과 시 발동. worker 실처리량은 ~1,500건/초(배치 50건 × ~30ms/사이클)이므로
+# 100건은 약 0.07초 분량의 적체에 해당한다. 값을 낮게 유지하는 이유는 처리 속도보다
+# "GET이 오래된 데이터를 읽지 않도록 즉시 차단"하는 것이 목적이기 때문이다.
 _QUEUE_OVERLOAD_THRESHOLD = int(os.environ.get("QUEUE_OVERLOAD_THRESHOLD", "100"))
 
 _circuit_redis = _redis.Redis(
