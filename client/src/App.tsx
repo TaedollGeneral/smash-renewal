@@ -201,9 +201,11 @@ function App() {
 
   // ⭐️ 배치 API: 7개 개별 요청 → 1회 /api/all-boards 호출로 통합
   const [boardOverloaded, setBoardOverloaded] = useState(false);
-  // 카운트다운 0 후 5초 grace period: 신청 성공 여부와 무관하게 "집계중" 표시
-  // (boardOverloaded는 circuit breaker 전용 — 기존 데이터 fallback 유지)
+  // 카운트다운 0 후 5초 grace period: SQLite GET 조회를 차단해 피크타임 부하 완화
+  // - isGracePeriod(state): BoardTable 렌더링용 "집계중" 표시 제어
+  // - isGracePeriodRef(ref): onActionSuccess 등 콜백에서 stale closure 없이 즉시 읽기용
   const [isGracePeriod, setIsGracePeriod] = useState(false);
+  const isGracePeriodRef = useRef(false);
   const fetchAllBoards = useCallback(async () => {
     if (!localStorage.getItem('smash_token')) return;
     try {
@@ -329,9 +331,9 @@ function App() {
     if (now - lastCountdownFetchRef.current < 2000) return;
     lastCountdownFetchRef.current = now;
 
-    // 카운트다운 0 → 5초간 게시판 "집계중" 표시 (grace period)
-    // isGracePeriod: circuit breaker(boardOverloaded)와 별도 — onActionSuccess와 무관하게 5초 보장
+    // 카운트다운 0 → 5초간 SQLite GET 차단 + "집계중" 표시 (grace period)
     setIsGracePeriod(true);
+    isGracePeriodRef.current = true;
 
     console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신, 게시판 5초 후 갱신`);
 
@@ -342,6 +344,7 @@ function App() {
     // 게시판 명단 조회는 5초 후, grace period 해제도 여기서
     if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
     graceTimerRef.current = setTimeout(() => {
+      isGracePeriodRef.current = false;
       setIsGracePeriod(false);
       fetchAllBoards();
       graceTimerRef.current = null;
@@ -349,7 +352,14 @@ function App() {
   };
 
   // ─── Soft refresh: 세 가지 데이터 모두 즉시 갱신 ────────────────────────────
+  // 사용자가 명시적으로 pull-to-refresh한 경우 grace period를 즉시 해제하고 전체 갱신
   const handleSoftRefresh = async () => {
+    if (graceTimerRef.current) {
+      clearTimeout(graceTimerRef.current);
+      graceTimerRef.current = null;
+    }
+    isGracePeriodRef.current = false;
+    setIsGracePeriod(false);
     setIsRefreshing(true);
     console.log('[Soft refresh] 시작');
     try {
@@ -588,7 +598,12 @@ function App() {
                     categoryState={categoryStates[currentDay][panel]}
                     onCountdownZero={() => handleCountdownZero(currentDay, panel)}
                     allApplications={allApplications}
-                    onActionSuccess={fetchAllBoards}
+                    onActionSuccess={() => {
+                      // grace period 중 신청/취소 성공: SQLite GET 차단 유지
+                      // 5초 후 grace period 해제 시 fetchAllBoards가 자동 호출됨
+                      if (isGracePeriodRef.current) return;
+                      fetchAllBoards();
+                    }}
                     boardOverloaded={boardOverloaded}
                     isGracePeriod={isGracePeriod}
                     notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
