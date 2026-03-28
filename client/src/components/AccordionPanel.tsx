@@ -163,6 +163,10 @@ export function AccordionPanel({
 
     if (deadlineTimestamp <= 0) return;
 
+    // initial=0: 마감 시각이 이미 지남. effectiveStatus가 버튼 상태를 즉시 처리하므로
+    // 타이머/onCountdownZero 불필요. 탭 전환 시 "집계중" 재트리거 방지.
+    if (initial === 0) return;
+
     // 남은 시간 60초 이상이면 1000ms 간격, 미만이면 100ms 간격 (안드로이드 렉 방지)
     let timerId: ReturnType<typeof setTimeout>;
 
