@@ -46,6 +46,19 @@ loglevel  = "warning"
 # ── 프로세스 ──────────────────────────────────────────────────────────────────
 preload_app = True
 
+# ── on_starting: 잔존 소켓 파일 정리 ─────────────────────────────────────────
+# gunicorn.conf.py와 동일한 이유. GEN · VIP 모두 같은 CWD를 사용하므로
+# 양쪽 모두 on_starting에서 *.ctl 파일을 정리한다.
+def on_starting(server):
+    import glob
+    import os
+    for f in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), '*.ctl')):
+        try:
+            os.unlink(f)
+        except OSError:
+            pass
+
+
 # ── post_fork: 워커별 데몬 스레드 시작 ────────────────────────────────────────
 # VIP 인스턴스는 /api/apply만 처리하므로:
 #   - 푸시 알림 워커: 시작 (알림 트리거는 apply 성공 후 발생 가능)
