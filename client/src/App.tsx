@@ -8,6 +8,7 @@ import { ExerciseListModal } from '@/components/ExerciseListModal';
 import { buildExerciseListText } from '@/lib/buildExerciseListText';
 import type { DayType, BoardType, User, Capacity, CapacityDetails, CategoryState, NotifStatus } from '@/types';
 import { fetchAllBoardData, type BoardEntry } from '@/hooks/useScheduleSystem';
+import { updateServerTimeOffset } from '@/lib/serverTime';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
@@ -264,7 +265,30 @@ function App() {
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
-      setCategoryStates(data);
+
+      // 1. 서버 시계 동기화: 오프셋 갱신 (캐시 히트 시 Node.js가 Date.now()로 교체하므로 항상 정확)
+      if (typeof data.serverTime === 'number') {
+        updateServerTimeOffset(data.serverTime);
+      }
+
+      // 2. status/statusText/deadlineTimestamp 업데이트, userAlreadyApplied는 기존 값 유지
+      // fetchCategoryStates는 신청 여부를 모르므로 덮어쓰면 이미 신청한 사람 버튼이 재활성화됨
+      setCategoryStates(prev => {
+        const next = structuredClone(prev) as typeof prev;
+        for (const day of (['수', '금'] as const)) {
+          for (const panel of Object.keys(next[day]) as (keyof typeof next[typeof day])[]) {
+            const incoming = data[day]?.[panel];
+            if (incoming) {
+              next[day][panel] = {
+                ...incoming,
+                userAlreadyApplied: prev[day][panel]?.userAlreadyApplied,
+              };
+            }
+          }
+        }
+        return next;
+      });
+
       console.log('[상태/카운트다운] 갱신 성공:', new Date().toLocaleTimeString());
     } catch (error) {
       console.error('[상태/카운트다운] 갱신 실패:', error);

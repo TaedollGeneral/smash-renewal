@@ -87,21 +87,23 @@ def get_category_states():
     """
     now = _now_kst()
 
-    result: dict = {"수": {}, "금": {}}
+    result: dict = {"수": {}, "금": {}, "serverTime": int(now.timestamp() * 1000)}
 
     for category, day, board in _CATEGORY_MAP:
         status = get_current_status(category, now)
-        next_time, _ = get_next_change(category, now)
+        next_time, next_status = get_next_change(category, now)
 
         # Unix ms 타임스탬프 (절대 시각) — 프론트엔드에서 Date.now()와 비교해 카운트다운 계산
         deadline_ms = int(next_time.timestamp() * 1000)
 
         frontend_status, status_text = _STATUS_MAP[status]
+        next_frontend_status, _ = _STATUS_MAP[next_status]
 
         result[day][board] = {
             "status":            frontend_status,
             "statusText":        status_text,
             "deadlineTimestamp": deadline_ms,
+            "nextStatus":        next_frontend_status,
         }
 
     return jsonify(result), 200
