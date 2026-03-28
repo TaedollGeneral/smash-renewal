@@ -45,11 +45,13 @@ def _lookup_member(student_id: str) -> dict | None:
     try:
         conn = sqlite3.connect(_DB_PATH, timeout=10)  # Gunicorn timeout(30s)보다 낮게
         conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT student_id, name FROM users WHERE student_id = ?",
-            (student_id,),
-        ).fetchone()
-        conn.close()
+        try:
+            row = conn.execute(
+                "SELECT student_id, name FROM users WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()
+        finally:
+            conn.close()
         if row:
             return {"student_id": row["student_id"], "name": row["name"]}
     except sqlite3.Error:
