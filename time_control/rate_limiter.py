@@ -3,10 +3,12 @@
 # 매크로/도배 방지를 위해 IP 또는 User ID 기반으로 요청 횟수를 제한한다.
 # Python 내장 모듈만 사용하여 1 GB 메모리 환경에 적합하다.
 
+import os
 import threading
 import time
 from functools import wraps
 
+import jwt as _jwt
 from flask import request, jsonify
 
 _lock = threading.Lock()
@@ -20,8 +22,11 @@ _request_count = 0
 # 서로 다른 window를 가진 엔드포인트 기록이 청소 타이밍에 따라 조기 삭제되지 않도록 한다.
 _CLEANUP_WINDOW = 120
 
-# ── 글로벌 IP 차단 (분당 요청 수 초과 시 일시 차단) ─────────────────────────────
-_GLOBAL_MAX_PER_IP = 120        # IP당 분당 최대 요청 수
+# ── 글로벌 요청 제한 ──────────────────────────────────────────────────────────
+# 미인증(IP 기반): NAT 뒤 다수 사용자가 공유하므로 상한을 넉넉하게 설정
+# 인증(User ID 기반): 엔드포인트별 rate_limit이 주 방어선이므로 여기서는 안전망 수준만
+_GLOBAL_MAX_PER_IP   = 300      # IP당 분당 최대 요청 수 (미인증, DDoS 방어용)
+_GLOBAL_MAX_PER_USER = 180      # User ID당 분당 최대 요청 수 (인증, 안전망)
 _GLOBAL_WINDOW = 60             # 윈도우 크기 (초)
 _ip_requests: dict[str, list[float]] = {}
 _ip_lock = threading.Lock()
@@ -48,6 +53,30 @@ def _get_real_ip() -> str:
     return remote
 
 
+def _get_global_key() -> tuple[str, int]:
+    """글로벌 Rate Limit 키와 허용 상한을 반환한다.
+
+    JWT가 유효하면 (uid:{user_id}, _GLOBAL_MAX_PER_USER) 반환 — NAT 환경에서
+    여러 사용자가 같은 IP를 공유하더라도 각자의 한도로 독립 제한한다.
+    JWT 없음 / 디코딩 실패 시 (ip:{real_ip}, _GLOBAL_MAX_PER_IP) 폴백.
+
+    토큰 만료·서명 검증은 @token_required가 담당하므로 여기서는 user_id 추출만 수행한다.
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header.split(' ', 1)[1]
+        try:
+            secret = os.environ.get('SECRET_KEY', '')
+            if secret:
+                payload = _jwt.decode(token, secret, algorithms=["HS256"])
+                user_id = payload.get('id')
+                if user_id:
+                    return f"uid:{user_id}", _GLOBAL_MAX_PER_USER
+        except Exception:
+            pass
+    return f"ip:{_get_real_ip()}", _GLOBAL_MAX_PER_IP
+
+
 def _cleanup() -> None:
     """윈도우를 벗어난 오래된 요청 기록을 전체 정리한다.
 
@@ -67,30 +96,30 @@ def _cleanup() -> None:
 
 
 def check_global_ip_limit() -> bool:
-    """IP 기반 글로벌 요청 수 검사. 제한 초과 시 True를 반환한다.
+    """글로벌 요청 수 검사. 제한 초과 시 True를 반환한다.
 
-    모든 엔드포인트에 앞서 호출하여 특정 IP의 비정상적 대량 요청을 차단한다.
+    - 인증 요청(JWT 있음): User ID 기준으로 제한 — NAT 공유 IP 오차단 방지
+    - 미인증 요청(JWT 없음): IP 기준으로 제한 — DDoS/봇 방어
     """
-    ip = _get_real_ip()
+    key, max_requests = _get_global_key()
     now = time.time()
 
     with _ip_lock:
-        if ip not in _ip_requests:
+        if key not in _ip_requests:
             # 키 수 상한 체크 (메모리 방어)
             if len(_ip_requests) >= _MAX_KEYS:
-                # 가장 오래된 항목부터 정리
                 cutoff = now - _GLOBAL_WINDOW
                 expired = [k for k, v in _ip_requests.items() if not v or v[-1] < cutoff]
                 for k in expired:
                     del _ip_requests[k]
-            _ip_requests[ip] = []
+            _ip_requests[key] = []
 
-        _ip_requests[ip] = [t for t in _ip_requests[ip] if now - t < _GLOBAL_WINDOW]
+        _ip_requests[key] = [t for t in _ip_requests[key] if now - t < _GLOBAL_WINDOW]
 
-        if len(_ip_requests[ip]) >= _GLOBAL_MAX_PER_IP:
+        if len(_ip_requests[key]) >= max_requests:
             return True  # 차단
 
-        _ip_requests[ip].append(now)
+        _ip_requests[key].append(now)
 
     return False  # 통과
 

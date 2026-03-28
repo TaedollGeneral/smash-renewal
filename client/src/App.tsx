@@ -305,11 +305,11 @@ function App() {
     // 카운트다운 0 → 5초간 게시판 "집계중" 표시, 조회 차단
     setBoardOverloaded(true);
 
-    const jitter = Math.random() * 500;
     console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신, 게시판 5초 후 갱신`);
 
-    // 카테고리 상태(버튼 활성화/카운트다운)는 즉시 갱신
-    setTimeout(() => fetchCategoryStates(), jitter);
+    // 카테고리 상태(버튼 활성화/카운트다운)는 즉시 갱신 — jitter 없음
+    // Node.js 2초 캐시가 Thundering Herd를 흡수하므로 분산 지연 불필요
+    fetchCategoryStates();
 
     // 게시판 명단 조회는 5초 후
     if (graceTimerRef.current) clearTimeout(graceTimerRef.current);

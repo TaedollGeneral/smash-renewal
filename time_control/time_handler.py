@@ -142,6 +142,9 @@ def get_capacities():
 # ── 역할 2: Command Validation — Guard Clause ──────────────────────────────────
 # 아래 함수들은 apply/ · cancel/ 하위 모듈에서 import하여 사용한다.
 
+_APPLY_GRACE_SECONDS = 1  # 클라이언트 시계 오차 보정: 오픈 1초 전 요청까지 허용
+
+
 def validate_apply_time(category: str, now: datetime) -> str | None:
     """신청 가능한 시간(OPEN)인지 검증한다.
 
@@ -152,6 +155,15 @@ def validate_apply_time(category: str, now: datetime) -> str | None:
     status = get_current_status(category, now)
     if status == Status.OPEN:
         return None
+
+    # Grace period: BEFORE_OPEN 상태에서 OPEN까지 1초 이내면 통과
+    # 클라이언트 기기 시계가 서버보다 최대 1초 빠를 때 발생하는 400 오차단 방지
+    if status == Status.BEFORE_OPEN:
+        next_time, next_status = get_next_change(category, now)
+        if next_status == Status.OPEN:
+            seconds_until_open = (next_time - now).total_seconds()
+            if 0 < seconds_until_open <= _APPLY_GRACE_SECONDS:
+                return None
 
     messages: dict[str, str] = {
         Status.BEFORE_OPEN: "아직 신청이 오픈되지 않았습니다.",
