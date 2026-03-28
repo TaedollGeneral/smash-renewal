@@ -52,6 +52,9 @@ module.exports = {
       cwd         : APP_DIR,
       env_file    : path.join(APP_DIR, '.env'),
       watch       : false,
+      // 크래시 후 자동 재시작 시 3초 대기 — 이전 프로세스가 포트 5000을 반환할 시간 확보.
+      // "Address already in use" 오류 방지. (수동 pm2 reload에는 영향 없음)
+      restart_delay: 3000,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
 
@@ -67,6 +70,8 @@ module.exports = {
       watch       : false,
       // 평시에는 자동 재시작 비활성화 (configure.sh가 명시적으로 start/stop 제어)
       autorestart : false,
+      // 크래시 후 재시작 시 포트 5001 반환 대기 (autorestart=false이지만 명시적 start 시에도 적용)
+      restart_delay: 3000,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
 
