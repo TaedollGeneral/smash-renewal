@@ -63,11 +63,23 @@ app.use((req, res, next) => {
     if (!isFlask) return next();
 
     // ── /api/category-states 캐시 처리 ───────────────────────────────────────
-    // 2초 TTL 내 재요청은 캐시에서 즉시 반환하여 Flask 도달 차단
+    // 2초 TTL 내 재요청은 캐시에서 즉시 반환하여 Flask 도달 차단.
+    // serverTime 필드는 캐시 저장 시각이 아닌 현재 시각으로 교체하여
+    // 클라이언트 시계 동기화 정확도를 유지한다.
     if (req.method === 'GET' && req.path === '/api/category-states') {
         if (_statesCache.body && (Date.now() - _statesCache.ts) < STATES_CACHE_TTL_MS) {
-            res.writeHead(200, _statesCache.headers);
-            return res.end(_statesCache.body);
+            try {
+                const parsed = JSON.parse(_statesCache.body.toString());
+                parsed.serverTime = Date.now();
+                const freshBody = Buffer.from(JSON.stringify(parsed));
+                const headers = { ..._statesCache.headers, 'content-length': freshBody.length };
+                res.writeHead(200, headers);
+                return res.end(freshBody);
+            } catch {
+                // JSON 파싱 실패 시 원본 캐시 그대로 반환
+                res.writeHead(200, _statesCache.headers);
+                return res.end(_statesCache.body);
+            }
         }
     }
 

@@ -8,6 +8,7 @@ import { CancelSelectionModal } from './CancelSelectionModal';
 import type { CategoryState, GuestCapacity, User } from '@/types';
 import { useScheduleSystem, Category, type BoardEntry } from '@/hooks/useScheduleSystem';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { serverNow } from '@/lib/serverTime';
 
 type BoardType = '운동' | '잔여석' | '게스트' | '레슨';
 type DayType = '수' | '금';
@@ -80,7 +81,7 @@ export function AccordionPanel({
 
   // 카운트다운 상태: deadlineTimestamp - Date.now() 로 직접 계산
   const [remainingMilliseconds, setRemainingMilliseconds] = useState(() =>
-    Math.max(0, deadlineTimestamp - Date.now())
+    Math.max(0, deadlineTimestamp - serverNow())
   );
 
   const hasCalledZeroRef = useRef(false);
@@ -152,7 +153,7 @@ export function AccordionPanel({
   useEffect(() => {
     hasCalledZeroRef.current = false;
 
-    const initial = Math.max(0, deadlineTimestamp - Date.now());
+    const initial = Math.max(0, deadlineTimestamp - serverNow());
     setRemainingMilliseconds(initial);
 
     if (deadlineTimestamp <= 0) return;
@@ -161,7 +162,7 @@ export function AccordionPanel({
     let timerId: ReturnType<typeof setTimeout>;
 
     const tick = () => {
-      const remaining = Math.max(0, deadlineTimestamp - Date.now());
+      const remaining = Math.max(0, deadlineTimestamp - serverNow());
       setRemainingMilliseconds(remaining);
 
       if (remaining === 0 && !hasCalledZeroRef.current && onCountdownZeroRef.current) {

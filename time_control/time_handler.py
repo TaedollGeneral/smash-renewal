@@ -87,7 +87,7 @@ def get_category_states():
     """
     now = _now_kst()
 
-    result: dict = {"수": {}, "금": {}}
+    result: dict = {"수": {}, "금": {}, "serverTime": int(now.timestamp() * 1000)}
 
     for category, day, board in _CATEGORY_MAP:
         status = get_current_status(category, now)
