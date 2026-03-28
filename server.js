@@ -72,7 +72,10 @@ app.use((req, res, next) => {
                 const parsed = JSON.parse(_statesCache.body.toString());
                 parsed.serverTime = Date.now();
                 const freshBody = Buffer.from(JSON.stringify(parsed));
-                const headers = { ..._statesCache.headers, 'content-length': freshBody.length };
+                const headers = { ..._statesCache.headers, 'content-length': String(freshBody.length) };
+                // transfer-encoding: chunked와 content-length 공존은 RFC 7230 위반
+                // body는 이미 decoded Buffer이므로 transfer-encoding 제거
+                delete headers['transfer-encoding'];
                 res.writeHead(200, headers);
                 return res.end(freshBody);
             } catch {
