@@ -129,7 +129,16 @@ export function BoardTable({ type, applications = [], boardOverloaded = false, h
         <tr>{renderHeaders()}</tr>
       </thead>
       <tbody>
-        {applications.length > 0 ? (
+        {boardOverloaded ? (
+          <tr>
+            <td
+              colSpan={type === '운동' ? 3 : 4}
+              className="py-8 text-center text-sm text-gray-500"
+            >
+              집계중입니다. 잠시만 기다려주세요.
+            </td>
+          </tr>
+        ) : applications.length > 0 ? (
           renderRows()
         ) : (
           <tr>
@@ -137,7 +146,7 @@ export function BoardTable({ type, applications = [], boardOverloaded = false, h
               colSpan={type === '운동' ? 3 : 4}
               className="py-8 text-center text-sm text-gray-500"
             >
-              {boardOverloaded ? '집계중입니다. 잠시만 기다려주세요.' : '신청 내역이 없습니다'}
+              신청 내역이 없습니다
             </td>
           </tr>
         )}
