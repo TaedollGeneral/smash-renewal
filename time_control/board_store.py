@@ -74,6 +74,11 @@ def ensure_table() -> None:
                 UNIQUE(category, user_id)
             )
         """)
+        # 기존 테이블이 UNIQUE 제약 없이 생성된 경우를 대비해 명시적 인덱스도 보장
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_category_user
+            ON applications(category, user_id)
+        """)
         conn.commit()
     finally:
         conn.close()

@@ -72,6 +72,11 @@ def _init_db() -> sqlite3.Connection:
             UNIQUE(category, user_id)
         )
     """)
+    # 기존 테이블이 UNIQUE 제약 없이 생성된 경우를 대비해 명시적 인덱스도 보장
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_category_user
+        ON applications(category, user_id)
+    """)
     conn.commit()
     print(f"[worker] SQLite 연결 완료 (WAL 모드) — {_DB_PATH}")
     return conn
