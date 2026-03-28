@@ -201,6 +201,9 @@ function App() {
 
   // ⭐️ 배치 API: 7개 개별 요청 → 1회 /api/all-boards 호출로 통합
   const [boardOverloaded, setBoardOverloaded] = useState(false);
+  // 카운트다운 0 후 5초 grace period: 신청 성공 여부와 무관하게 "집계중" 표시
+  // (boardOverloaded는 circuit breaker 전용 — 기존 데이터 fallback 유지)
+  const [isGracePeriod, setIsGracePeriod] = useState(false);
   const fetchAllBoards = useCallback(async () => {
     if (!localStorage.getItem('smash_token')) return;
     try {
@@ -326,8 +329,9 @@ function App() {
     if (now - lastCountdownFetchRef.current < 2000) return;
     lastCountdownFetchRef.current = now;
 
-    // 카운트다운 0 → 5초간 게시판 "집계중" 표시, 조회 차단
-    setBoardOverloaded(true);
+    // 카운트다운 0 → 5초간 게시판 "집계중" 표시 (grace period)
+    // isGracePeriod: circuit breaker(boardOverloaded)와 별도 — onActionSuccess와 무관하게 5초 보장
+    setIsGracePeriod(true);
 
     console.log(`[카운트다운] ${dayType}요일 ${category} 종료 → 상태 즉시 갱신, 게시판 5초 후 갱신`);
 
@@ -335,9 +339,10 @@ function App() {
     // Node.js 2초 캐시가 Thundering Herd를 흡수하므로 분산 지연 불필요
     fetchCategoryStates();
 
-    // 게시판 명단 조회는 5초 후
+    // 게시판 명단 조회는 5초 후, grace period 해제도 여기서
     if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
     graceTimerRef.current = setTimeout(() => {
+      setIsGracePeriod(false);
       fetchAllBoards();
       graceTimerRef.current = null;
     }, 5000);
@@ -585,6 +590,7 @@ function App() {
                     allApplications={allApplications}
                     onActionSuccess={fetchAllBoards}
                     boardOverloaded={boardOverloaded}
+                    isGracePeriod={isGracePeriod}
                     notifConfirmed={currentDay === '수' ? (notifStatus?.wed_confirmed ?? false) : (notifStatus?.fri_confirmed ?? false)}
                     notifPrefs={notifStatus?.prefs ?? {}}
                     onNotifToggle={handleNotifToggle}

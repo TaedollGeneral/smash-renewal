@@ -6,10 +6,11 @@ interface BoardTableProps {
   type: BoardType;
   applications?: BoardEntry[];
   boardOverloaded?: boolean;
+  isGracePeriod?: boolean;
   highlightCount?: number;
 }
 
-export function BoardTable({ type, applications = [], boardOverloaded = false, highlightCount }: BoardTableProps) {
+export function BoardTable({ type, applications = [], boardOverloaded = false, isGracePeriod = false, highlightCount }: BoardTableProps) {
 
   const renderHeaders = () => {
     switch (type) {
@@ -129,7 +130,8 @@ export function BoardTable({ type, applications = [], boardOverloaded = false, h
         <tr>{renderHeaders()}</tr>
       </thead>
       <tbody>
-        {boardOverloaded ? (
+        {isGracePeriod ? (
+          // 카운트다운 0 후 5초 grace period: 기존 데이터 유무와 무관하게 항상 집계중 표시
           <tr>
             <td
               colSpan={type === '운동' ? 3 : 4}
@@ -146,7 +148,7 @@ export function BoardTable({ type, applications = [], boardOverloaded = false, h
               colSpan={type === '운동' ? 3 : 4}
               className="py-8 text-center text-sm text-gray-500"
             >
-              신청 내역이 없습니다
+              {boardOverloaded ? '집계중입니다. 잠시만 기다려주세요.' : '신청 내역이 없습니다'}
             </td>
           </tr>
         )}
